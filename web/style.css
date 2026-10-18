@@ -3,3 +3,4 @@ body { display: flex; flex-direction: column; }
 header { padding: 8px 12px; border-bottom: 1px solid #2a2e39; }
 header span { color: #787b86; margin-left: 8px; }
 #chart { flex: 1; min-height: 0; }
+header em { color: #f7a600; font-style: normal; margin-left: 8px; }

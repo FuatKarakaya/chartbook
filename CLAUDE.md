@@ -6,10 +6,12 @@ explain results in plain language with click-by-click test steps.
 
 ## Commands
 - `npm run build` — build the page (Vite, `web/` -> `dist/web/`)
-- `npm start` — one Hono process: API + built page on port 3000
+- `npm start` — one Hono process: API + built page on port 3000; fills empty history on first start, then updates every 5 min
+- `npm run backfill` — re-download full history for all assets (~1 min)
 - `npm test` — Vitest
 - `npm run typecheck` — tsc
-- `npm run shot` — Playwright screenshot of the running app -> `shots/chart.png` (gitignored)
+- `npm run shot -- [url] [file]` — Playwright screenshot of the running app -> `shots/chart.png` (gitignored)
+- In the cloud sandbox, prefix network commands with `NODE_USE_ENV_PROXY=1` so Node fetch uses the proxy
 
 Lightweight Charts v5 skill is installed in `.claude/skills/lightweight-charts`; use it, and check
 `node_modules/lightweight-charts/dist/typings.d.ts` before using an API.
