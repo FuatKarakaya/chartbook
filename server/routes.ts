@@ -1,10 +1,17 @@
 import { Hono } from 'hono';
-import sample from './sample/btc-1d.json' with { type: 'json' };
-import type { Candle } from '../shared/types.ts';
+import type { Asset } from '../shared/types.ts';
+import type { Db } from './db.ts';
+import { ASSETS, failing, STORED, type Stored } from './updater.ts';
 
-// M0: serves one sample file (2y of BTC daily). M1 replaces this with SQLite.
-export const api = new Hono().get('/candles', (c) => {
-  const { asset, interval } = c.req.query();
-  if (asset !== 'btc' || interval !== '1D') return c.json({ error: 'sample has btc 1D only' }, 404);
-  return c.json(sample as Candle[]);
-});
+export function api(db: Db) {
+  return new Hono()
+    .get('/candles', (c) => {
+      const { asset, interval } = c.req.query();
+      // 4h/1W/1M are built from 1h/1D in M2.
+      if (!ASSETS.includes(asset as Asset) || !STORED.includes(interval as Stored)) {
+        return c.json({ error: `unknown asset/interval: ${asset} ${interval}` }, 404);
+      }
+      return c.json(db.candles(asset as Asset, interval as Stored));
+    })
+    .get('/status', (c) => c.json({ failing: [...failing] }));
+}
