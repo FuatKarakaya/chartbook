@@ -27,3 +27,10 @@ it('save replaces the tail so a moved live bar does not linger', () => {
   expect(db.lastTime('btc', '1D')).toBe(172800);
   expect(db.lastTime('spx', '1D')).toBeNull();
 });
+
+it('remembers which data version the history was downloaded with', () => {
+  const db = openDb(':memory:');
+  expect(db.dataVersion()).toBe(0);
+  db.setDataVersion(1);
+  expect(db.dataVersion()).toBe(1);
+});
