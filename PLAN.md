@@ -26,12 +26,13 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 - Cycles page (M7), like the "Bitcoin Market Cycle Bottom ROI" chart: one line per market cycle, x = days since that
   cycle's bottom, y = ROI = close / bottom close (starts at 1).
   - Controls (button groups): Asset (BTC, ETH) · Data length: To peak / 3 months out / To next bottom (current cycle: to today)
-    · 2021 peak: April / November · ROI scale: Log (default) / Linear.
+    · 2021 peak: April / November · Combine 2010 + 2011 cycles: No / Yes (one cycle from 2010 to the 2013 peak)
+    · ROI scale: Log (default) / Linear.
   - Cycle colours + names by bottom year ("2015 cycle"); click a legend name to hide/show it. Title line:
     "ROI from last cycle bottom: 5.16". Hover readout: day N, each visible cycle's ROI and date.
   - Cycle dates live in one file (shared/cycles.ts), not auto-detected. BTC, from stored daily closes:
-    bottoms 2011-10-20, 2015-01-14, 2018-12-15, 2022-11-21; peaks 2013-12-04, 2017-12-16, 2021-04-13 or 2021-11-08,
-    2025-10-06. A new bottom is added only when the owner says it is confirmed. ETH dates picked the same way in M7.
+    bottoms 2010-07-17 (first price), 2011-11-18, 2015-01-14, 2018-12-15, 2022-11-21; peaks 2011-06-08, 2013-12-04,
+    2017-12-16, 2021-04-13 or 2021-11-08, 2025-10-06. A new bottom is added only when the owner says it is confirmed. ETH dates picked the same way in M7.
   - Lightweight Charts with a numeric (non-time) x axis; no new dependency.
 - Seasonality page (M8): table of monthly % returns, rows = years, columns = Jan..Dec + full year, cells green/red
   by size. Bottom rows: average, median, % of years up. Current, unfinished month shown faded and left out of stats.
@@ -43,7 +44,7 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 ## Data
 | Asset | Daily | Hourly |
 |---|---|---|
-| BTC | Yahoo BTC-USD (2014+), Bitstamp public API for 2011-2014 | Bitstamp (2011+) |
+| BTC | Yahoo BTC-USD (2014-09+), Bitstamp 2012-2014, saved file for 2010-07 to 2011 (below) | Bitstamp (2011-08+; nothing earlier exists online) |
 | S&P 500 | Yahoo ^GSPC (1927+) | Yahoo (last 730 days only) |
 | Gold | Yahoo GC=F (2000+); Stooq xauusd earlier if STOOQ_API_KEY set | Yahoo |
 | Silver | Yahoo SI=F (2000+); Stooq xagusd earlier if STOOQ_API_KEY set | Yahoo |
@@ -55,6 +56,11 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 | M2 money supply (M6) | FRED M2SL, monthly, $bn (1959+) | none |
 
 - Yahoo via yahoo-finance2. Bitstamp/Stooq via plain fetch. Not CoinGecko (free tier = 365 days).
+- BTC 2010-07-17 to 2011-12-31 daily is a committed file (server/sources/btc-2010-2011.json, made by
+  scripts/btc-2010-2011.ts): CoinMetrics daily close + Mt. Gox high/low from bitcoinity.org (no wicks after the
+  June 2011 hack), open = previous close. Bitstamp's 2011 daily data is too thin (no trades on ~40% of days).
+- DATA_VERSION in updater.ts: bump it when a source change needs history re-downloaded; the app then does one full
+  re-download on its next start (stored in SQLite's user_version).
 - FRED via plain fetch of the public CSV (fred.stlouisfed.org/graph/fredgraph.csv?id=DFF), no key. Refreshed hourly, not every 5 min.
 - Backfill command for full history. Updater every 5 min: last 2 days of 1h + last 10 days of 1D, upsert. On startup, catch up from last saved candle first.
 - SQLite via node:sqlite, file in gitignored data/. Tables: candles(asset, interval, time, o, h, l, c), drawings(id, asset, json).

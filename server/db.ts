@@ -35,5 +35,8 @@ export function openDb(path = 'data/chartbook.db') {
     },
     candles: (asset: Asset, interval: Interval) => select.all(asset, interval) as unknown as Candle[],
     lastTime: (asset: Asset, interval: Interval) => (last.get(asset, interval) as { t: number | null }).t,
+    /** Which DATA_VERSION (updater.ts) the stored history was downloaded with; SQLite's spare user_version slot. */
+    dataVersion: () => (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
+    setDataVersion: (v: number) => db.exec(`PRAGMA user_version = ${v}`),
   };
 }
