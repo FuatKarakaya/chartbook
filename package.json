@@ -1,0 +1,28 @@
+{
+  "name": "chartbook",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "vite build",
+    "start": "tsx server/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "shot": "tsx scripts/screenshot.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "hono": "^4.13.13",
+    "lightweight-charts": "^5.2.1",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "playwright": "1.56",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

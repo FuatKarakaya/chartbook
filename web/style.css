@@ -1,0 +1,5 @@
+html, body { margin: 0; height: 100%; background: #131722; color: #d1d4dc; font: 14px system-ui, sans-serif; }
+body { display: flex; flex-direction: column; }
+header { padding: 8px 12px; border-bottom: 1px solid #2a2e39; }
+header span { color: #787b86; margin-left: 8px; }
+#chart { flex: 1; min-height: 0; }
