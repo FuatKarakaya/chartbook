@@ -13,10 +13,23 @@ it('serves stored candles in time order', async () => {
   expect(await res.json()).toEqual([bar(3600, 1), bar(7200, 2)]);
 });
 
-it('404s for unknown assets and not-yet-built intervals', async () => {
+it('404s for unknown assets and intervals', async () => {
   const app = api(openDb(':memory:'));
   expect((await app.request('/candles?asset=doge&interval=1D')).status).toBe(404);
-  expect((await app.request('/candles?asset=btc&interval=4h')).status).toBe(404);
+  expect((await app.request('/candles?asset=btc&interval=5m')).status).toBe(404);
+});
+
+it('builds 4h from stored 1h and weeks from stored days', async () => {
+  const db = openDb(':memory:');
+  db.save('btc', '1h', [bar(0, 1), bar(3600, 3), bar(14400, 2)]);
+  db.save('btc', '1D', [bar(4 * 86400, 5), bar(5 * 86400, 6)]); // Mon 1970-01-05, Tue
+  const app = api(db);
+  expect(await (await app.request('/candles?asset=btc&interval=4h')).json()).toEqual([
+    { time: 0, open: 1, high: 3, low: 1, close: 3 }, bar(14400, 2),
+  ]);
+  expect(await (await app.request('/candles?asset=btc&interval=1W')).json()).toEqual([
+    { time: 4 * 86400, open: 5, high: 6, low: 5, close: 6 },
+  ]);
 });
 
 it('save replaces the tail so a moved live bar does not linger', () => {

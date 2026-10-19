@@ -86,7 +86,7 @@ shared/  types.ts  time.ts  cycles.ts
 ## Milestones
 - [x] M0 Skeleton: CLAUDE.md, PLAN.md, install LWC agent skill (npx skills add https://github.com/tradingview/lightweight-charts), server + page, BTC chart from a small sample file, start.bat.
 - [x] M1 Data: sources, backfill, updater, SQLite, candles API. Done: all 4 assets load in 1h and 1D with the start dates above. (Stooq pre-2000 gold/silver not done yet.)
-- [ ] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50W/200W, right-side space.
+- [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50W/200W, right-side space. Opens on the last 400 bars; MAs show as steps on smaller timeframes (each bar uses its latest week).
 - [ ] M3 Drawing tools + saving.
 - [ ] M4 Fractal tool.
 - [ ] M5 Settings panel (MA length/colour), keyboard shortcuts, ratio charts, 20W/21W band, halving lines, PNG export.

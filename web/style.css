@@ -1,6 +1,19 @@
 html, body { margin: 0; height: 100%; background: #131722; color: #d1d4dc; font: 14px system-ui, sans-serif; }
 body { display: flex; flex-direction: column; }
-header { padding: 8px 12px; border-bottom: 1px solid #2a2e39; }
-header span { color: #787b86; margin-left: 8px; }
-#chart { flex: 1; min-height: 0; }
-header em { color: #f7a600; font-style: normal; margin-left: 8px; }
+header { display: flex; align-items: center; gap: 12px; padding: 6px 12px; border-bottom: 1px solid #2a2e39; }
+header em { color: #f7a600; font-style: normal; }
+nav { display: flex; flex-wrap: wrap; gap: 12px; }
+.group { display: flex; }
+.group button {
+  background: none; color: #b2b5be; border: 1px solid #2a2e39; padding: 4px 10px; font: inherit; cursor: pointer;
+}
+.group button + button { border-left: none; }
+.group button:hover { background: #2a2e39; }
+.group button.on { background: #2962ff; border-color: #2962ff; color: #fff; }
+main { flex: 1; min-height: 0; position: relative; }
+#chart { position: absolute; inset: 0; }
+#readout { position: absolute; top: 8px; left: 12px; z-index: 3; pointer-events: none; font-size: 13px; }
+#readout span { margin-right: 8px; }
+#readout b { font-weight: 500; }
+#readout .up { color: #26a69a; margin-right: 8px; }
+#readout .down { color: #ef5350; margin-right: 8px; }
