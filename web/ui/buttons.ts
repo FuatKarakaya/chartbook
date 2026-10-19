@@ -25,3 +25,13 @@ export function buttonGroup<T extends string>(
   select(current);
   return select;
 }
+
+/** One on/off button, lit while on. */
+export function toggle(parent: HTMLElement, label: string, on: boolean, onChange: (on: boolean) => void) {
+  const group = parent.appendChild(document.createElement('div'));
+  group.className = 'group';
+  const b = group.appendChild(document.createElement('button'));
+  b.textContent = label;
+  b.classList.toggle('on', on);
+  b.onclick = () => onChange(b.classList.toggle('on'));
+}

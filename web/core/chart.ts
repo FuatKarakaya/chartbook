@@ -37,7 +37,7 @@ export function createMainChart(el: HTMLElement) {
     /** The candle series; its price scale places drawings (it converts prices even while hidden in line mode). */
     series: candles,
     /**
-     * Replaces everything shown: bars, their close line, and the overlay lines (e.g. the weekly MAs).
+     * Replaces everything shown: bars, their close line, and the overlay lines (e.g. the 50D/200D MAs).
      * Jumps to the latest bars, unless `keepView` (a refresh of the same chart) keeps the current zoom and scroll.
      */
     setData(bars: Candle[], lines: Line[], intraday: boolean, keepView = false) {
@@ -50,7 +50,7 @@ export function createMainChart(el: HTMLElement) {
         s.applyOptions({ color: lines[i].color });
       });
       chart.timeScale().setVisibleLogicalRange(keepView && view ? view
-        : { from: bars.length - START_BARS, to: bars.length - 1 + RIGHT_SPACE });
+        : { from: Math.max(0, bars.length - START_BARS), to: bars.length - 1 + RIGHT_SPACE });
     },
     setLog: (log: boolean) =>
       chart.applyOptions({ rightPriceScale: { mode: log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal } }),
@@ -58,7 +58,7 @@ export function createMainChart(el: HTMLElement) {
       candles.applyOptions({ visible: style === 'candles' });
       close.applyOptions({ visible: style === 'line' });
     },
-    setOverlaysVisible: (visible: boolean) => overlays.forEach((s) => s.applyOptions({ visible })),
+    setOverlayVisible: (i: number, visible: boolean) => overlays[i].applyOptions({ visible }),
     /** Calls back with the bar time under the crosshair, or null when the mouse leaves the bars. */
     onHover(cb: (time: number | null) => void) {
       chart.subscribeCrosshairMove((p) => cb(p.time === undefined ? null : (p.time as number)));
