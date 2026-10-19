@@ -47,3 +47,19 @@ it('remembers which data version the history was downloaded with', () => {
   db.setDataVersion(1);
   expect(db.dataVersion()).toBe(1);
 });
+
+it('saves drawings per asset, replacing the whole list', async () => {
+  const app = api(openDb(':memory:'));
+  const line = { id: 'a', type: 'trend', points: [{ time: 0, price: 1 }, { time: 86400, price: 2 }] };
+  const hline = { id: 'b', type: 'horizontal', points: [{ time: 0, price: 3 }] };
+  const put = (asset: string, body: unknown) =>
+    app.request(`/drawings?asset=${asset}`, { method: 'PUT', body: JSON.stringify(body) });
+  expect((await put('btc', [line, hline])).status).toBe(204);
+  const gold = { ...hline, id: 'c' };
+  await put('gold', [gold]);
+  expect(await (await app.request('/drawings?asset=btc')).json()).toEqual([line, hline]);
+  await put('btc', [hline]);
+  expect(await (await app.request('/drawings?asset=btc')).json()).toEqual([hline]);
+  expect(await (await app.request('/drawings?asset=gold')).json()).toEqual([gold]);
+  expect((await put('doge', [])).status).toBe(404);
+});

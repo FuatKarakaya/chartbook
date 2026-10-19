@@ -17,5 +17,16 @@ export function api(db: Db) {
       const stored = db.candles(asset, BASE[interval]);
       return c.json(interval === BASE[interval] ? stored : aggregate(stored, bucket[interval as keyof typeof bucket]));
     })
+    .get('/drawings', (c) => {
+      const asset = c.req.query('asset') as Asset;
+      if (!ASSETS.includes(asset)) return c.json({ error: `unknown asset: ${asset}` }, 404);
+      return c.json(db.drawings(asset));
+    })
+    .put('/drawings', async (c) => {
+      const asset = c.req.query('asset') as Asset;
+      if (!ASSETS.includes(asset)) return c.json({ error: `unknown asset: ${asset}` }, 404);
+      db.saveDrawings(asset, await c.req.json());
+      return c.body(null, 204);
+    })
     .get('/status', (c) => c.json({ failing: [...failing] }));
 }
