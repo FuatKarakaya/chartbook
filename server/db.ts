@@ -26,13 +26,13 @@ export function openDb(path = 'data/chartbook.db') {
 
   return {
     /**
-     * Saves candles, first dropping stored ones from the first new candle onwards, so a still-forming bar
-     * whose timestamp moved (Yahoo does this) doesn't linger as a duplicate.
+     * Saves candles, first dropping stored ones from the first new candle onwards (or from `from`), so a still-forming
+     * bar whose timestamp moved (Yahoo does this) doesn't linger as a duplicate.
      */
-    save(asset: Asset, interval: Interval, candles: Candle[]) {
+    save(asset: Asset, interval: Interval, candles: Candle[], from = candles[0]?.time) {
       if (!candles.length) return;
       db.exec('BEGIN');
-      deleteFrom.run(asset, interval, candles[0].time);
+      deleteFrom.run(asset, interval, from);
       for (const k of candles) insert.run(asset, interval, k.time, k.open, k.high, k.low, k.close);
       db.exec('COMMIT');
     },
