@@ -93,7 +93,10 @@ shared/  types.ts  time.ts  cycles.ts
 - [x] M1 Data: sources, backfill, updater, SQLite, candles API. Done: all 4 assets load in 1h and 1D with the start dates above. (Stooq pre-2000 gold/silver not done yet.)
 - [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50D/200D (changed from 50W/200W), right-side space. Opens on the last 400 bars (all of them if fewer); MAs show as steps on 1h/4h (each bar uses its latest day).
 - [x] M3 Drawing tools + saving. Drawings snap to bars in time, show on every timeframe (a 1D point lands between bars on 1W), and can sit in the empty future space.
-- [ ] M4 Fractal tool.
+- [x] M4 Fractal tool. The copy starts at the last candle; the chart scrolls to it and the price scale fits it. Handles: start (move),
+  end (time), biggest move (size; dragging it past the start flips). A bar under the readout for the selected drawing: flip, colour,
+  opacity, copy onto another asset (starts at its last candle), Delete (every tool gets the Delete button). On 1h/4h a stretch
+  older than the hourly history is copied from daily candles.
 - [ ] M5 Settings panel (MA length/colour), keyboard shortcuts, ratio charts, 20W/21W band, halving lines, PNG export.
 - [ ] M6 More data: ETH, Nasdaq, DXY, US 10Y, Fed funds rate, M2 (FRED source, line-only series, grouped switcher). Done: all load with the start dates above.
 - [ ] M7 Cycles page: BTC + ETH cycle-bottom ROI chart with the controls above. Tests: ROI maths, data-length cut-offs.

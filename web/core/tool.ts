@@ -1,4 +1,4 @@
-import type { Anchor } from '../../shared/types.ts';
+import type { Anchor, Asset, Candle, Drawing, Interval, PointDrawing } from '../../shared/types.ts';
 import { formatPrice } from './chart.ts';
 
 export interface Px { x: number; y: number }
@@ -6,24 +6,60 @@ export interface Size { width: number; height: number }
 
 export const COLOR = '#26c6da';
 
+/** What a tool sees of the chart: its size, time/price -> pixels (also in the empty space on the right), and candles. */
+export interface View extends Size {
+  x(time: number): number;
+  y(price: number): number;
+  asset: Asset;
+  interval: Interval;
+  /** The bars on screen. */
+  bars: Candle[];
+  /** Any asset's candles on any timeframe; undefined while they download (the chart redraws once they're in). */
+  candles(asset: Asset, interval: Interval): Candle[] | undefined;
+}
+
+/** Given to a tool's controls, to change the selected drawing. */
+export interface Edit<D extends Drawing> {
+  /** Call after changing it: redraws, and when `done` saves it as one undo step (a slider: once let go). */
+  changed(done: boolean): void;
+  /** Switches the chart to another asset and adds `make(its bars)` there, as a new drawing. */
+  copyTo(asset: Asset, make: (bars: Candle[]) => D): void;
+}
+
 /**
  * A drawing tool, one file in web/tools/. A drawing is plain JSON (shared/types.ts Drawing), so saving it is just
- * JSON.stringify; the editor (core/drawings.ts) turns clicks into its points and every point into a drag handle.
- * `px` are the points in screen pixels, `points` the same points as time + price.
+ * JSON.stringify. The editor (core/drawings.ts) collects the clicks, draws, hit-tests and drags the handles. By
+ * default the clicks become the drawing's `points` and each point is a handle; a tool storing something else (the
+ * fractal) says how with `create`, `handles` and `place`. `px` are the handles in screen pixels.
  */
-export interface Tool {
+export interface Tool<D extends Drawing = PointDrawing> {
   type: string;
   label: string;
-  /** Clicks that create one; each click becomes one point. */
+  /** Clicks that create one. */
   clicks: number;
   /** Points jump to the nearest open, high, low or close of the candle under the mouse. */
   snap?: boolean;
   /** Not saved: shown until the next click or Esc (a ruler). */
   temporary?: boolean;
-  draw(ctx: CanvasRenderingContext2D, px: Px[], points: Anchor[], size: Size): void;
+  /** Makes one from its clicks, or null if they don't make one (the clicks start over). */
+  create?(clicks: Anchor[], view: View): Omit<D, 'id' | 'type'> | null;
+  /** Its drag handles as time + price. */
+  handles?(d: D, view: View): Anchor[];
+  /** Applies a drag: `moved` is the dragged handle, or -1 when the whole drawing moved (every handle shifted). */
+  place?(d: D, handles: Anchor[], moved: number, view: View): void;
+  /** `selected` is also true while it is being made. */
+  draw(ctx: CanvasRenderingContext2D, px: Px[], d: D, view: View, selected: boolean): void;
   /** Whether (x, y) is on the drawing's body (the editor tests the handles). */
-  hit(px: Px[], x: number, y: number, size: Size): boolean;
+  hit(px: Px[], x: number, y: number, d: D, view: View): boolean;
+  /** Candles it draws (a fractal's copy), which the price scale keeps in view like the chart's own. */
+  candles?(d: D, view: View): Candle[];
+  /** Settings shown above the chart while one is selected, before the Delete button. */
+  controls?(d: D, edit: Edit<D>, view: View): (HTMLElement | string)[];
 }
+
+/** A drawing's handles as time + price: its points unless its tool says otherwise. */
+export const handlesOf = (tool: Tool<Drawing>, d: Drawing, view: View) =>
+  tool.handles?.(d, view) ?? (d as PointDrawing).points;
 
 /** How close (CSS pixels) the mouse must be to grab a line. */
 export const GRAB = 6;
@@ -55,7 +91,7 @@ export function nearSegment(a: Px, b: Px, x: number, y: number) {
   return Math.hypot(a.x + t * dx - x, a.y + t * dy - y) <= GRAB;
 }
 
-/** A text box centred on (x, y), or ending at x when `align` is 'right'. */
+/** A text box centred on (x, y), or ending at x when `align` is 'right'; `bg` is a #rrggbb colour. */
 export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, bg: string, align = 'center') {
   ctx.font = '12px system-ui, sans-serif';
   const w = ctx.measureText(text).width + 12;
@@ -64,7 +100,8 @@ export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y:
   ctx.beginPath();
   ctx.roundRect(left, y - 10, w, 20, 3);
   ctx.fill();
-  ctx.fillStyle = '#fff';
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(bg.slice(i, i + 2), 16));
+  ctx.fillStyle = 0.299 * r + 0.587 * g + 0.114 * b > 160 ? '#000' : '#fff'; // dark text on a light colour
   ctx.textBaseline = 'middle';
   ctx.fillText(text, left + 6, y);
 }

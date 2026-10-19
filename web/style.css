@@ -4,13 +4,13 @@ header { display: flex; align-items: center; gap: 12px; padding: 6px 12px; borde
 header em { color: #f7a600; font-style: normal; }
 nav { display: flex; flex-wrap: wrap; gap: 12px; }
 .group { display: flex; }
-.group button {
+.group button, .drawing-bar button {
   background: none; color: #b2b5be; border: 1px solid #2a2e39; padding: 4px 10px; font: inherit; cursor: pointer;
 }
 .group button + button { border-left: none; }
-.group button:hover { background: #2a2e39; }
+.group button:hover, .drawing-bar button:hover { background: #2a2e39; }
 .group button:disabled { opacity: 0.5; cursor: default; }
-.group button.on { background: #2962ff; border-color: #2962ff; color: #fff; }
+.group button.on, .drawing-bar button.on { background: #2962ff; border-color: #2962ff; color: #fff; }
 main { flex: 1; min-height: 0; position: relative; }
 #chart { position: absolute; inset: 0; }
 #readout { position: absolute; top: 8px; left: 12px; z-index: 3; pointer-events: none; font-size: 13px; }
@@ -18,3 +18,11 @@ main { flex: 1; min-height: 0; position: relative; }
 #readout b { font-weight: 500; }
 #readout .up { color: #26a69a; margin-right: 8px; }
 #readout .down { color: #ef5350; margin-right: 8px; }
+/* Settings for the selected drawing, under the readout. */
+.drawing-bar {
+  position: absolute; top: 32px; left: 12px; z-index: 3; display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px; background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; font-size: 13px;
+}
+.drawing-bar[hidden] { display: none; }
+.drawing-bar input[type=color] { width: 28px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; }
+.drawing-bar input[type=range] { width: 80px; }
