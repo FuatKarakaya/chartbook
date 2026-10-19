@@ -10,7 +10,15 @@ where node >nul 2>nul || (
 )
 
 echo === Getting latest version ===
+rem npm install can rewrite package-lock.json on Windows, which would block every later update. Undo that first.
+git checkout -- package-lock.json
 git pull
+if errorlevel 1 (
+  echo.
+  echo *** Could not download the latest version. Screenshot this window and send it to Claude.
+  echo *** Press any key to start the version you already have.
+  pause >nul
+)
 
 echo === Installing packages ===
 call npm install
