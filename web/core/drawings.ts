@@ -1,13 +1,15 @@
 import type { IChartApi, IPanePrimitive, ISeriesApi, Logical, SeriesType } from 'lightweight-charts';
-import type { Anchor, Drawing } from '../../shared/types.ts';
+import type { Anchor, Candle, Drawing } from '../../shared/types.ts';
+import { snapToCandle } from './snap.ts';
 import { timeline } from './timeline.ts';
-import { COLOR, GRAB, type Px, type Tool } from './tool.ts';
+import { dot, GRAB, type Px, type Tool } from './tool.ts';
 
 interface Drag { d: Drawing; handle: number; start: Anchor[]; from: Px; before: string; moved: boolean }
 
 /**
  * Draws the asset's drawings on the chart and lets you make and edit them: pick a tool, click its points;
  * with no tool, click a drawing to select it, drag it or its handles, Delete removes it, Ctrl+Z undoes.
+ * A temporary tool (the ruler, also on Shift+click) isn't saved: it stays until the next click or Esc.
  * `onChange` gets the full list after every change (for saving); `onToolDone` fires when a tool finished or was cancelled.
  */
 export function drawingEditor(
@@ -16,6 +18,8 @@ export function drawingEditor(
 ) {
   const time = chart.timeScale();
   const byType = new Map(tools.map((t) => [t.type, t]));
+  const quick = tools.find((t) => t.temporary);
+  let bars: Candle[] = [];
   let line: ReturnType<typeof timeline>;
   let drawings: Drawing[] = [];
   let undo: string[] = [];
@@ -24,6 +28,7 @@ export function drawingEditor(
   let pending: Anchor[] = []; // points clicked so far for the drawing being made
   let mouse: Anchor | null = null;
   let drag: Drag | null = null;
+  let ruler: { tool: Tool; points: Anchor[] } | null = null; // a finished temporary measurement
   let redraw = () => {};
 
   // logicalToCoordinate only takes whole bars, and a daily point on the weekly chart sits between two.
@@ -37,8 +42,11 @@ export function drawingEditor(
     y: series.priceToCoordinate(a.price) ?? NaN,
   });
   const logicalAt = (x: number) => time.coordinateToLogical(x) ?? 0;
-  // Clicks snap to the nearest bar (or future bar slot) in time; price is wherever the mouse is.
-  const toAnchor = (p: Px): Anchor => ({ time: line.toTime(Math.round(logicalAt(p.x))), price: series.coordinateToPrice(p.y)! });
+  // Clicks snap to the nearest bar (or future bar slot) in time; price is wherever the mouse is, or the nearest
+  // open/high/low/close for a snapping tool.
+  const toAnchor = (p: Px): Anchor => tool?.snap
+    ? snapToCandle(bars, logicalAt(p.x), p.y, (price) => series.priceToCoordinate(price) ?? NaN)
+    : { time: line.toTime(Math.round(logicalAt(p.x))), price: series.coordinateToPrice(p.y)! };
   const size = () => ({ width: time.width(), height: chart.panes()[0].getHeight() });
   const commit = (before: string) => {
     undo.push(before);
@@ -61,19 +69,12 @@ export function drawingEditor(
   function render(ctx: CanvasRenderingContext2D) {
     const s = size();
     for (const d of drawings) byType.get(d.type)!.draw(ctx, d.points.map(toPx), d.points, s);
+    if (ruler) ruler.tool.draw(ctx, ruler.points.map(toPx), ruler.points, s);
     if (tool && pending.length && mouse) {
       const points = [...pending, mouse];
       tool.draw(ctx, points.map(toPx), points, s);
     }
-    for (const p of selected?.points.map(toPx) ?? []) {
-      ctx.fillStyle = '#131722';
-      ctx.strokeStyle = COLOR;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.stroke();
-    }
+    for (const p of selected?.points.map(toPx) ?? []) dot(ctx, p, 5, '#131722');
   }
 
   const layer: IPanePrimitive = {
@@ -106,6 +107,8 @@ export function drawingEditor(
     const p = pointAt(e);
     const s = size();
     if (e.button !== 0 || p.x > s.width || p.y > s.height) return;
+    ruler = null; // any click clears the last one
+    if (!tool && e.shiftKey && quick) tool = quick;
     const grab = () => {
       e.preventDefault(); // also stops the chart's own mousedown
       e.stopPropagation();
@@ -113,7 +116,10 @@ export function drawingEditor(
     if (tool) {
       grab();
       pending.push(toAnchor(p));
-      if (pending.length === tool.clicks) {
+      if (pending.length === tool.clicks && tool.temporary) {
+        ruler = { tool, points: pending };
+        finishTool();
+      } else if (pending.length === tool.clicks) {
         const before = JSON.stringify(drawings);
         selected = { id: crypto.randomUUID(), type: tool.type, points: pending };
         drawings.push(selected);
@@ -161,6 +167,7 @@ export function drawingEditor(
     if (e.key === 'Escape') {
       if (tool) finishTool();
       selected = null;
+      ruler = null;
       redraw();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
       const before = JSON.stringify(drawings);
@@ -183,11 +190,13 @@ export function drawingEditor(
       undo = [];
       selected = null;
       pending = [];
+      ruler = null;
       redraw();
     },
-    /** The bar times on screen, for placing drawings made on any timeframe. */
-    setBars(times: number[]) {
-      line = timeline(times);
+    /** The bars on screen, for placing drawings made on any timeframe. */
+    setBars(candles: Candle[]) {
+      bars = candles;
+      line = timeline(candles.map((b) => b.time));
       redraw();
     },
     count: () => drawings.length,

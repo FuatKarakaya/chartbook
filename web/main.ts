@@ -57,7 +57,7 @@ async function load(keepView = false) {
   index.clear();
   bars.forEach((b, i) => index.set(b.time, i));
   lines = maLines(days);
-  editor.setBars(bars.map((b) => b.time));
+  editor.setBars(bars);
   if (saved) {
     editor.load(saved);
     drawnAsset = asset;
