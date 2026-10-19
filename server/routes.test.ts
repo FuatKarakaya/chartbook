@@ -63,3 +63,10 @@ it('saves drawings per asset, replacing the whole list', async () => {
   expect(await (await app.request('/drawings?asset=gold')).json()).toEqual([gold]);
   expect((await put('doge', [])).status).toBe(404);
 });
+
+it('a full re-download replaces older stored candles too', () => {
+  const db = openDb(':memory:');
+  db.save('silver', '1D', [bar(0, 1), bar(86400, 2)]);
+  db.save('silver', '1D', [bar(172800, 3)], -2e9);
+  expect(db.candles('silver', '1D')).toEqual([bar(172800, 3)]);
+});

@@ -8,8 +8,8 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 - Log scale (default) / linear toggle. Candles or line.
 - Crosshair readout: date, OHLC, candle % change.
 - Empty space right of last bar so drawings can project into the future.
-- 50W + 200W SMA, always from weekly closes, shown on every timeframe. Toggle, length, colour in settings.
-- Drawing tools: trend line, ray, horizontal line, measure (% change + weeks). Select, move, drag handles, Delete, Ctrl+Z. Saved per asset on server.
+- 50D + 200D SMA, always from daily closes, shown on every timeframe; each has its own on/off button. Length, colour in settings.
+- Drawing tools: trend line, ray, horizontal line, measure (% change + weeks). Select, move, drag handles, Delete, Ctrl+Z, Clear all. Saved per asset on server.
 - Fractal tool (like TradingView "Bars Pattern"): pick source range (any asset) -> ghost copy anchored at last candle -> drag to move; handles scale time and move size; label "time x1.25 · moves x0.6"; flip, colour, opacity, delete.
   - Stored: {sourceAsset, srcStart, srcEnd, anchorTime, anchorPrice, timeScale, moveScale, flip, style}
   - price_i = anchorPrice * (c_i / c_0) ^ (moveScale * (flip ? -1 : 1)); t_i = anchorTime + timeScale * (t_i_src - t_0_src)
@@ -47,7 +47,7 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 | BTC | Yahoo BTC-USD (2014-09+), Bitstamp 2012-2014, saved file for 2010-07 to 2011 (below) | Bitstamp (2011-08+; nothing earlier exists online) |
 | S&P 500 | Yahoo ^GSPC (1927+) | Yahoo (last 730 days only) |
 | Gold | Yahoo GC=F (2000+); Stooq xauusd earlier if STOOQ_API_KEY set | Yahoo |
-| Silver | Yahoo SI=F (2000+); Stooq xagusd earlier if STOOQ_API_KEY set | Yahoo |
+| Silver | Dukascopy XAGUSD spot (2001+); today from Yahoo's most traded contract (e.g. SIZ26.CMX), scaled to spot | Same |
 | ETH (M6) | Yahoo ETH-USD (2017-11+), Bitstamp ethusd for 2017-08 to 2017-11 | Bitstamp (2017-08+) |
 | Nasdaq Composite (M6) | Yahoo ^IXIC (1971+) | Yahoo |
 | US Dollar Index (M6) | Yahoo DX-Y.NYB (1971+) | Yahoo |
@@ -55,7 +55,10 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 | Fed funds rate (M6) | FRED DFF, daily effective rate (1954+) | none |
 | M2 money supply (M6) | FRED M2SL, monthly, $bn (1959+) | none |
 
-- Yahoo via yahoo-finance2. Bitstamp/Stooq via plain fetch. Not CoinGecko (free tier = 365 days).
+- Yahoo via yahoo-finance2. Bitstamp/Stooq/Dukascopy via plain fetch. Not CoinGecko (free tier = 365 days).
+- Not Yahoo SI=F for silver: it follows thinly traded contract months, so most days are near-flat bars. Dukascopy publishes
+  a day only once it is over and often answers "busy", so its files are fetched one a second with retries.
+- Yahoo hourly: the 20:00 UTC S&P closing print is folded into the last bar, flat after-hours repeats are dropped.
 - BTC 2010-07-17 to 2011-12-31 daily is a committed file (server/sources/btc-2010-2011.json, made by
   scripts/btc-2010-2011.ts): CoinMetrics daily close + Mt. Gox high/low from bitcoinity.org (no wicks after the
   June 2011 hack), open = previous close. Bitstamp's 2011 daily data is too thin (no trades on ~40% of days).
@@ -70,7 +73,7 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 TypeScript everywhere, Node 22+. Hono server serves API and built page (one process). Vite + plain TS, no React. Lightweight Charts v5 (Apache-2.0: enable attributionLogo). Vitest for maths, Playwright screenshots for self-checking UI. start.bat: git pull, npm install, build, start, open browser.
 
 ```
-server/  sources/{yahoo,bitstamp,stooq,fred}.ts  db.ts  updater.ts  routes.ts
+server/  sources/{yahoo,bitstamp,dukascopy,silver,stooq,fred}.ts  db.ts  updater.ts  routes.ts
 web/     core/{chart,store,api}.ts  indicators/  tools/  ui/  pages/{cycles,seasonality}.ts  {index,cycles,seasonality}.html
 shared/  types.ts  time.ts  cycles.ts
 ```
@@ -86,7 +89,7 @@ shared/  types.ts  time.ts  cycles.ts
 ## Milestones
 - [x] M0 Skeleton: CLAUDE.md, PLAN.md, install LWC agent skill (npx skills add https://github.com/tradingview/lightweight-charts), server + page, BTC chart from a small sample file, start.bat.
 - [x] M1 Data: sources, backfill, updater, SQLite, candles API. Done: all 4 assets load in 1h and 1D with the start dates above. (Stooq pre-2000 gold/silver not done yet.)
-- [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50W/200W, right-side space. Opens on the last 400 bars; MAs show as steps on smaller timeframes (each bar uses its latest week).
+- [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50D/200D (changed from 50W/200W), right-side space. Opens on the last 400 bars (all of them if fewer); MAs show as steps on 1h/4h (each bar uses its latest day).
 - [x] M3 Drawing tools + saving. Drawings snap to bars in time, show on every timeframe (a 1D point lands between bars on 1W), and can sit in the empty future space.
 - [ ] M4 Fractal tool.
 - [ ] M5 Settings panel (MA length/colour), keyboard shortcuts, ratio charts, 20W/21W band, halving lines, PNG export.

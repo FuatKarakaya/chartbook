@@ -190,6 +190,14 @@ export function drawingEditor(
       line = timeline(times);
       redraw();
     },
+    count: () => drawings.length,
+    /** Deletes every drawing on this asset (Ctrl+Z brings them back). */
+    clear() {
+      const before = JSON.stringify(drawings);
+      drawings = [];
+      selected = null;
+      commit(before);
+    },
     /** Picks a tool by type, or null for the plain pointer. */
     setTool(type: string | null) {
       tool = type ? byType.get(type)! : null;

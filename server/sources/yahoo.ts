@@ -22,18 +22,31 @@ export async function fetchYahoo(symbol: string, interval: '1h' | '1D', from: nu
 interface Quote { date: Date; open: number | null; high: number | null; low: number | null; close: number | null }
 
 /**
- * Drops empty bars and floors times to `step` seconds; when two bars land on one slot the later wins.
- * High/low are widened to cover open/close: old futures bars often close at a settlement price outside them.
+ * Drops empty bars and floors times to `step` seconds. High/low are widened to cover open/close: old futures bars
+ * often close at a settlement price outside them. Two kinds of stray bar are folded away:
+ * - one that starts less than `step` after the bar before it is merged into that bar. S&P hourly bars run
+ *   13:30, 14:30 .. 19:30 UTC, then Yahoo adds the 20:00 closing print as its own few-minute bar; the live bar too.
+ * - a bar with no range at the last close (an after-hours repeat of the close, e.g. S&P at 21:00) is dropped.
  */
 export function toCandles(quotes: Quote[], step: number): Candle[] {
   const out: Candle[] = [];
+  let start = -Infinity; // real start of the last bar, before flooring
   for (const q of quotes) {
     if (q.open == null || q.high == null || q.low == null || q.close == null) continue;
-    const time = Math.floor(q.date.getTime() / 1000 / step) * step;
+    const t = q.date.getTime() / 1000;
     const { open, close } = q;
-    const candle = { time, open, high: Math.max(q.high, open, close), low: Math.min(q.low, open, close), close };
-    if (out.at(-1)?.time === time) out[out.length - 1] = candle;
-    else out.push(candle);
+    const high = Math.max(q.high, open, close);
+    const low = Math.min(q.low, open, close);
+    const last = out.at(-1);
+    if (last && high === low && close === last.close) continue;
+    if (last && t < start + step) {
+      last.high = Math.max(last.high, high);
+      last.low = Math.min(last.low, low);
+      last.close = close;
+      continue;
+    }
+    start = t;
+    out.push({ time: Math.floor(t / step) * step, open, high, low, close });
   }
   return out;
 }
