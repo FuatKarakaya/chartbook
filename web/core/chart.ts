@@ -34,8 +34,12 @@ export function createMainChart(el: HTMLElement) {
 
   return {
     chart,
-    /** Replaces everything shown: bars, their close line, and the overlay lines (e.g. the weekly MAs). */
-    setData(bars: Candle[], lines: Line[], intraday: boolean) {
+    /**
+     * Replaces everything shown: bars, their close line, and the overlay lines (e.g. the weekly MAs).
+     * Jumps to the latest bars, unless `keepView` (a refresh of the same chart) keeps the current zoom and scroll.
+     */
+    setData(bars: Candle[], lines: Line[], intraday: boolean, keepView = false) {
+      const view = chart.timeScale().getVisibleLogicalRange();
       chart.applyOptions({ timeScale: { timeVisible: intraday } });
       candles.setData(bars as CandlestickData<UTCTimestamp>[]);
       close.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })));
@@ -43,7 +47,8 @@ export function createMainChart(el: HTMLElement) {
         s.setData(lines[i].points as LineData<UTCTimestamp>[]);
         s.applyOptions({ color: lines[i].color });
       });
-      chart.timeScale().setVisibleLogicalRange({ from: bars.length - START_BARS, to: bars.length - 1 + RIGHT_SPACE });
+      chart.timeScale().setVisibleLogicalRange(keepView && view ? view
+        : { from: bars.length - START_BARS, to: bars.length - 1 + RIGHT_SPACE });
     },
     setLog: (log: boolean) =>
       chart.applyOptions({ rightPriceScale: { mode: log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal } }),

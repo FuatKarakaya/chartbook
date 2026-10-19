@@ -26,6 +26,8 @@ const save = () => history.replaceState(null, '', `?${new URLSearchParams({
 const main = createMainChart(document.getElementById('chart')!);
 const show = readout(document.getElementById('readout')!);
 const toolbar = document.getElementById('toolbar')!;
+const refresh = document.getElementById('refresh') as HTMLButtonElement;
+const delayed = document.getElementById('delayed')!;
 let bars: Candle[] = [];
 let lines: ReturnType<typeof maLines> = [];
 const index = new Map<number, number>(); // bar time -> position, for the hover readout
@@ -35,17 +37,21 @@ const maLines = (weeks: Candle[]) =>
 const intraday = () => state.interval === '1h' || state.interval === '4h';
 const showLast = () => show(bars, bars.length - 1, state.mas ? lines : [], intraday());
 
-async function load() {
+/** Fetches and shows the current asset and timeframe; `keepView` keeps zoom and scroll (the Refresh button). */
+async function load(keepView = false) {
   save();
   const { asset, interval } = state;
-  const [candles, weeks] = await Promise.all([fetchCandles(asset, interval), fetchCandles(asset, '1W')]);
+  const [candles, weeks, status] = await Promise.all([
+    fetchCandles(asset, interval), fetchCandles(asset, '1W'), fetchStatus(),
+  ]);
   if (asset !== state.asset || interval !== state.interval) return; // a newer click won
   bars = candles;
   index.clear();
   bars.forEach((b, i) => index.set(b.time, i));
   lines = maLines(weeks);
-  main.setData(bars, lines, intraday());
+  main.setData(bars, lines, intraday(), keepView);
   showLast();
+  delayed.hidden = status.failing.length === 0;
 }
 
 const pickAsset = buttonGroup(toolbar, ASSETS, state.asset, (a) => { state.asset = a; load(); });
@@ -59,6 +65,12 @@ buttonGroup(toolbar, [['candles', 'Candles'], ['line', 'Line']], state.style, (s
 buttonGroup(toolbar, [['on', '50W/200W'], ['off', 'No MAs']], state.mas ? 'on' : 'off', (m) => {
   state.mas = m === 'on'; main.setOverlaysVisible(state.mas); showLast(); save();
 });
+
+// The server downloads new prices every 5 minutes; this shows them without losing your place.
+refresh.onclick = () => {
+  refresh.disabled = true;
+  load(true).finally(() => (refresh.disabled = false));
+};
 
 // Keys 1-4 switch asset.
 addEventListener('keydown', (e) => {
@@ -79,5 +91,3 @@ main.setLog(state.log);
 main.setStyle(state.style);
 main.setOverlaysVisible(state.mas);
 await load();
-const { failing } = await fetchStatus();
-document.getElementById('delayed')!.hidden = failing.length === 0;

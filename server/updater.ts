@@ -6,7 +6,7 @@ import { fetchYahoo } from './sources/yahoo.ts';
 
 export type Stored = '1h' | '1D';
 export const ASSETS: Asset[] = ['btc', 'gold', 'silver', 'spx'];
-export const STORED: Stored[] = ['1h', '1D'];
+const STORED: Stored[] = ['1h', '1D'];
 
 const DAY = 86400;
 const YAHOO: Record<Exclude<Asset, 'btc'>, string> = { gold: 'GC=F', silver: 'SI=F', spx: '^GSPC' };

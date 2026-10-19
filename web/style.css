@@ -9,6 +9,7 @@ nav { display: flex; flex-wrap: wrap; gap: 12px; }
 }
 .group button + button { border-left: none; }
 .group button:hover { background: #2a2e39; }
+.group button:disabled { opacity: 0.5; cursor: default; }
 .group button.on { background: #2962ff; border-color: #2962ff; color: #fff; }
 main { flex: 1; min-height: 0; position: relative; }
 #chart { position: absolute; inset: 0; }
