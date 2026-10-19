@@ -50,7 +50,7 @@ async function file(symbol: string, path: string, start: number): Promise<Candle
   }
 }
 
-/** Hour candles from `from` to now: a file per finished month, then this month's minute files rolled up into hours. */
+/** Hour candles from `from` to the end of yesterday: a file per finished month, then this month's minute files rolled up into hours. */
 async function hours(symbol: string, from: number): Promise<Candle[]> {
   const now = new Date();
   const thisMonth = utc(now.getUTCFullYear(), now.getUTCMonth());
@@ -58,7 +58,8 @@ async function hours(symbol: string, from: number): Promise<Candle[]> {
   for (let d = new Date(from * 1000), y = d.getUTCFullYear(), m = d.getUTCMonth(); utc(y, m) < thisMonth; [y, m] = m === 11 ? [y + 1, 0] : [y, m + 1]) {
     out.push(...await file(symbol, `${y}/${pad(m)}/BID_candles_hour_1`, utc(y, m))); // months count from 00
   }
-  for (let t = Math.floor(Math.max(from, thisMonth) / DAY) * DAY; t <= now.getTime() / 1000; t += DAY) {
+  // A day's file appears only once the day is over, so today is never asked for.
+  for (let t = Math.floor(Math.max(from, thisMonth) / DAY) * DAY; t + DAY <= now.getTime() / 1000; t += DAY) {
     const d = new Date(t * 1000);
     const minutes = await file(symbol, `${d.getUTCFullYear()}/${pad(d.getUTCMonth())}/${pad(d.getUTCDate())}/BID_candles_min_1`, t);
     out.push(...aggregate(minutes, hourOf));
