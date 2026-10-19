@@ -10,6 +10,8 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 - Empty space right of last bar so drawings can project into the future.
 - 50D + 200D SMA, always from daily closes, shown on every timeframe; each has its own on/off button. Length, colour in settings.
 - Drawing tools: trend line, ray, horizontal line, measure (% change + weeks). Select, move, drag handles, Delete, Ctrl+Z, Clear all. Saved per asset on server.
+- Ruler (temporary, not saved; button or Shift+click): two clicks, each end jumps to the nearest open/high/low/close of
+  the candle under the mouse; shows % and price change + time between. The next click or Esc clears it.
 - Fractal tool (like TradingView "Bars Pattern"): pick source range (any asset) -> ghost copy anchored at last candle -> drag to move; handles scale time and move size; label "time x1.25 · moves x0.6"; flip, colour, opacity, delete.
   - Stored: {sourceAsset, srcStart, srcEnd, anchorTime, anchorPrice, timeScale, moveScale, flip, style}
   - price_i = anchorPrice * (c_i / c_0) ^ (moveScale * (flip ? -1 : 1)); t_i = anchorTime + timeScale * (t_i_src - t_0_src)
