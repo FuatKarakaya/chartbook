@@ -34,6 +34,8 @@ export function createMainChart(el: HTMLElement) {
 
   return {
     chart,
+    /** The candle series; its price scale places drawings (it converts prices even while hidden in line mode). */
+    series: candles,
     /**
      * Replaces everything shown: bars, their close line, and the overlay lines (e.g. the weekly MAs).
      * Jumps to the latest bars, unless `keepView` (a refresh of the same chart) keeps the current zoom and scroll.

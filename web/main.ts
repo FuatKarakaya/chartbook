@@ -1,7 +1,9 @@
 import type { Asset, Candle, Interval } from '../shared/types.ts';
-import { fetchCandles, fetchStatus } from './core/api.ts';
+import { fetchCandles, fetchDrawings, fetchStatus, saveDrawings } from './core/api.ts';
 import { createMainChart, type Style } from './core/chart.ts';
+import { drawingEditor } from './core/drawings.ts';
 import { onBars, sma } from './indicators/weekly-sma.ts';
+import { TOOLS } from './tools/index.ts';
 import { buttonGroup } from './ui/buttons.ts';
 import { readout } from './ui/readout.ts';
 
@@ -23,12 +25,14 @@ const save = () => history.replaceState(null, '', `?${new URLSearchParams({
   mas: state.mas ? 'on' : 'off',
 })}`);
 
-const main = createMainChart(document.getElementById('chart')!);
+const chartEl = document.getElementById('chart')!;
+const main = createMainChart(chartEl);
 const show = readout(document.getElementById('readout')!);
 const toolbar = document.getElementById('toolbar')!;
 const refresh = document.getElementById('refresh') as HTMLButtonElement;
 const delayed = document.getElementById('delayed')!;
 let bars: Candle[] = [];
+let drawnAsset: Asset | null = null; // whose drawings are on screen
 let lines: ReturnType<typeof maLines> = [];
 const index = new Map<number, number>(); // bar time -> position, for the hover readout
 
@@ -41,18 +45,28 @@ const showLast = () => show(bars, bars.length - 1, state.mas ? lines : [], intra
 async function load(keepView = false) {
   save();
   const { asset, interval } = state;
-  const [candles, weeks, status] = await Promise.all([
+  const [candles, weeks, status, saved] = await Promise.all([
     fetchCandles(asset, interval), fetchCandles(asset, '1W'), fetchStatus(),
+    asset === drawnAsset ? null : fetchDrawings(asset),
   ]);
   if (asset !== state.asset || interval !== state.interval) return; // a newer click won
   bars = candles;
   index.clear();
   bars.forEach((b, i) => index.set(b.time, i));
   lines = maLines(weeks);
+  editor.setBars(bars.map((b) => b.time));
+  if (saved) {
+    editor.load(saved);
+    drawnAsset = asset;
+  }
   main.setData(bars, lines, intraday(), keepView);
   showLast();
   delayed.hidden = status.failing.length === 0;
 }
+
+// Drawings are saved per asset and show on every timeframe; each change is sent to the server straight away.
+const editor = drawingEditor(main.chart, main.series, chartEl, TOOLS,
+  (list) => saveDrawings(state.asset, list), () => pickTool('cursor'));
 
 const pickAsset = buttonGroup(toolbar, ASSETS, state.asset, (a) => { state.asset = a; load(); });
 buttonGroup(toolbar, INTERVALS, state.interval, (i) => { state.interval = i; load(); });
@@ -65,6 +79,8 @@ buttonGroup(toolbar, [['candles', 'Candles'], ['line', 'Line']], state.style, (s
 buttonGroup(toolbar, [['on', '50W/200W'], ['off', 'No MAs']], state.mas ? 'on' : 'off', (m) => {
   state.mas = m === 'on'; main.setOverlaysVisible(state.mas); showLast(); save();
 });
+const pickTool = buttonGroup(toolbar, [['cursor', 'Cursor'], ...TOOLS.map((t): [string, string] => [t.type, t.label])],
+  'cursor', (t) => editor.setTool(t === 'cursor' ? null : t));
 
 // The server downloads new prices every 5 minutes; this shows them without losing your place.
 refresh.onclick = () => {
