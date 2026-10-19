@@ -62,6 +62,24 @@ it('saves drawings per asset, replacing the whole list', async () => {
   expect(await (await app.request('/drawings?asset=btc')).json()).toEqual([hline]);
   expect(await (await app.request('/drawings?asset=gold')).json()).toEqual([gold]);
   expect((await put('doge', [])).status).toBe(404);
+  await put('btc/gold', [line]); // a ratio chart has its own
+  expect(await (await app.request('/drawings?asset=btc/gold')).json()).toEqual([line]);
+  expect(await (await app.request('/drawings?asset=btc')).json()).toEqual([hline]);
+  expect((await put('btc/btc', [])).status).toBe(404);
+});
+
+it('serves ratio charts, built up from the divided stored series', async () => {
+  const db = openDb(':memory:');
+  db.save('btc', '1D', [bar(4 * 86400, 10), bar(5 * 86400, 30)]); // Mon 1970-01-05, Tue
+  db.save('gold', '1D', [bar(4 * 86400, 5), bar(5 * 86400, 10)]);
+  const app = api(db);
+  expect(await (await app.request('/candles?asset=btc/gold&interval=1D')).json()).toEqual([bar(4 * 86400, 2), bar(5 * 86400, 3)]);
+  expect(await (await app.request('/candles?asset=btc/gold&interval=1W')).json()).toEqual([
+    { time: 4 * 86400, open: 2, high: 3, low: 2, close: 3 },
+  ]);
+  for (const bad of ['gold/gold', 'btc/doge', 'btc/gold/spx']) {
+    expect((await app.request(`/candles?asset=${bad}&interval=1D`)).status).toBe(404);
+  }
 });
 
 it('a full re-download replaces older stored candles too', () => {

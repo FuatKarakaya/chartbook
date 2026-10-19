@@ -1,9 +1,10 @@
-import { ASSET_NAMES, type Anchor, type Asset, type Candle, type Drawing } from '../../shared/types.ts';
+import { ASSET_NAMES, tickerName, type Anchor, type Asset, type Candle, type Drawing, type Ticker } from '../../shared/types.ts';
 import { GRAB, label, type Px, type Tool, type View } from '../core/tool.ts';
 
 /** A ghost copy of a stretch of candles (PLAN.md's stored shape). */
 export interface Fractal extends Drawing {
-  sourceAsset: Asset;
+  /** An asset, or a ratio of two. */
+  sourceAsset: Ticker;
   /** The stretch copied (UTC seconds). */
   srcStart: number;
   srcEnd: number;
@@ -86,6 +87,7 @@ function button(text: string, onclick: () => void, title = '') {
 export const fractal: Tool<Fractal> = {
   type: 'fractal',
   label: 'Fractal',
+  key: 'F',
   clicks: 2,
   create([a, b], view) {
     if (stretch(view.bars, Math.min(a.time, b.time), Math.max(a.time, b.time)).length < 2) return null;
@@ -184,6 +186,6 @@ export const fractal: Tool<Fractal> = {
       button(ASSET_NAMES[asset], () => edit.copyTo(asset, (bars) => ({
         ...structuredClone(f), anchorTime: bars[bars.length - 1].time, anchorPrice: bars[bars.length - 1].close,
       })), `Copy this fractal onto ${ASSET_NAMES[asset]}, starting at its last candle`));
-    return [`Fractal of ${ASSET_NAMES[f.sourceAsset]} ${date(f.srcStart)} to ${date(f.srcEnd)}`, flip, color, opacity, 'Copy to', ...copies];
+    return [`Fractal of ${tickerName(f.sourceAsset)} ${date(f.srcStart)} to ${date(f.srcEnd)}`, flip, color, opacity, 'Copy to', ...copies];
   },
 };

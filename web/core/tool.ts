@@ -1,4 +1,4 @@
-import type { Anchor, Asset, Candle, Drawing, Interval, PointDrawing } from '../../shared/types.ts';
+import type { Anchor, Asset, Candle, Drawing, Interval, PointDrawing, Ticker } from '../../shared/types.ts';
 import { formatPrice } from './chart.ts';
 
 export interface Px { x: number; y: number }
@@ -10,12 +10,13 @@ export const COLOR = '#26c6da';
 export interface View extends Size {
   x(time: number): number;
   y(price: number): number;
-  asset: Asset;
+  /** The chart's asset, or ratio of two. */
+  asset: Ticker;
   interval: Interval;
   /** The bars on screen. */
   bars: Candle[];
-  /** Any asset's candles on any timeframe; undefined while they download (the chart redraws once they're in). */
-  candles(asset: Asset, interval: Interval): Candle[] | undefined;
+  /** Any chart's candles on any timeframe; undefined while they download (the chart redraws once they're in). */
+  candles(asset: Ticker, interval: Interval): Candle[] | undefined;
 }
 
 /** Given to a tool's controls, to change the selected drawing. */
@@ -35,6 +36,8 @@ export interface Edit<D extends Drawing> {
 export interface Tool<D extends Drawing = PointDrawing> {
   type: string;
   label: string;
+  /** Keyboard shortcut that picks it. */
+  key: string;
   /** Clicks that create one. */
   clicks: number;
   /** Points jump to the nearest open, high, low or close of the candle under the mouse. */

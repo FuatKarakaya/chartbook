@@ -1,30 +1,39 @@
-import { ASSET_NAMES, type Asset, type Candle, type Interval } from '../shared/types.ts';
+import { ASSET_NAMES, tickerName, type Asset, type Candle, type Interval, type Ticker } from '../shared/types.ts';
 import { fetchCandles, fetchDrawings, fetchStatus, saveDrawings } from './core/api.ts';
-import { createMainChart, type Style } from './core/chart.ts';
+import { createMainChart, type Line, type Style } from './core/chart.ts';
 import { drawingEditor } from './core/drawings.ts';
+import { band } from './indicators/band.ts';
+import { HALVINGS } from './indicators/halvings.ts';
 import { onBars, sma } from './indicators/sma.ts';
 import { TOOLS } from './tools/index.ts';
-import { buttonGroup, toggle } from './ui/buttons.ts';
+import { buttonGroup, shortcut, shortcuts, toggle } from './ui/buttons.ts';
 import { readout } from './ui/readout.ts';
+import { loadSettings, settingsPanel } from './ui/settings.ts';
 
 const ASSETS = Object.entries(ASSET_NAMES) as [Asset, string][];
-const INTERVALS: [Interval, string][] = [['1h', '1h'], ['4h', '4h'], ['1D', '1D'], ['1W', '1W'], ['1M', '1M']];
-/** Moving averages of daily closes, shown on every timeframe. */
-const MAS = [{ name: '50D', length: 50, color: '#2962ff' }, { name: '200D', length: 200, color: '#ff9800' }];
+const INTERVALS: Interval[] = ['1h', '4h', '1D', '1W', '1M'];
+/** Keys the drawing editor handles itself, for the shortcut list. */
+const EDITOR_KEYS = [
+  { key: 'Shift+click', label: 'Ruler' }, { key: 'Esc', label: 'Stop drawing, unselect' },
+  { key: 'Delete', label: 'Delete the selected drawing' }, { key: 'Ctrl+Z', label: 'Undo a drawing change' },
+];
 
 // The view lives in the address bar, so a reload or bookmark keeps it.
 const params = new URLSearchParams(location.search);
 const state = {
   asset: (params.get('asset') ?? 'btc') as Asset,
+  /** Priced in this asset instead of dollars: a ratio chart. */
+  vs: (params.get('vs') || null) as Asset | null,
   interval: (params.get('interval') ?? '1D') as Interval,
   log: params.get('scale') !== 'linear',
   style: (params.get('style') ?? 'candles') as Style,
-  // Which MAs are on, by length, e.g. ma=50,200.
-  mas: MAS.map((m) => (params.get('ma') ?? '50,200').split(',').includes(String(m.length))),
+  /** What is switched on: ma1, ma2 (the two moving averages), band, halvings. */
+  show: new Set((params.get('show') ?? 'ma1,ma2').split(',')),
 };
+const ticker = (): Ticker => (state.vs ? `${state.asset}/${state.vs}` : state.asset);
 const save = () => history.replaceState(null, '', `?${new URLSearchParams({
-  asset: state.asset, interval: state.interval, scale: state.log ? 'log' : 'linear', style: state.style,
-  ma: MAS.filter((_, i) => state.mas[i]).map((m) => m.length).join(','),
+  asset: state.asset, ...(state.vs && { vs: state.vs }), interval: state.interval, scale: state.log ? 'log' : 'linear',
+  style: state.style, show: [...state.show].join(','),
 })}`);
 
 const chartEl = document.getElementById('chart')!;
@@ -32,71 +41,113 @@ const main = createMainChart(chartEl);
 const show = readout(document.getElementById('readout')!);
 const toolbar = document.getElementById('toolbar')!;
 const refresh = document.getElementById('refresh') as HTMLButtonElement;
+const picture = document.getElementById('picture') as HTMLButtonElement;
 const delayed = document.getElementById('delayed')!;
+const settings = loadSettings();
 let bars: Candle[] = [];
-let drawnAsset: Asset | null = null; // whose drawings are on screen
-let lines: ReturnType<typeof maLines> = [];
+let days: Candle[] = [];
+let drawn: Ticker | null = null; // whose drawings are on screen
+let lines: (Line & { key: string })[] = [];
 const index = new Map<number, number>(); // bar time -> position, for the hover readout
 
-const maLines = (days: Candle[]) =>
-  MAS.map((m) => ({ name: m.name, color: m.color, points: onBars(sma(days, m.length), bars) }));
-const shownLines = () => lines.filter((_, i) => state.mas[i]);
+/** The lines over the bars, all from daily candles, so they agree on every timeframe. */
+function makeLines() {
+  const weekly = band(days);
+  lines = [
+    ...settings.ma.map((m, i) => ({
+      key: `ma${i + 1}`, name: `${m.length}D`, color: m.color, points: onBars(sma(days, m.length), bars),
+    })),
+    { key: 'band', name: '20W SMA', color: settings.band, points: onBars(weekly.sma, bars) },
+    { key: 'band', name: '21W EMA', color: settings.band, points: onBars(weekly.ema, bars), band: true },
+  ];
+}
+const shownLines = () => lines.filter((l) => state.show.has(l.key));
 const intraday = () => state.interval === '1h' || state.interval === '4h';
 const showLast = () => show(bars, bars.length - 1, shownLines(), intraday());
+/** Puts what is switched on over the bars. */
+function showLines() {
+  main.setLines(shownLines());
+  main.setMarks(state.show.has('halvings') ? HALVINGS : []);
+  showLast();
+}
 
-/** Fetches and shows the current asset and timeframe; `keepView` keeps zoom and scroll (the Refresh button). */
+/** Fetches and shows the current chart and timeframe; `keepView` keeps zoom and scroll (the Refresh button). */
 async function load(keepView = false) {
   save();
-  const { asset, interval } = state;
-  const [candles, days, status, saved] = await Promise.all([
-    fetchCandles(asset, interval), fetchCandles(asset, '1D'), fetchStatus(),
-    asset === drawnAsset ? null : fetchDrawings(asset),
+  const t = ticker();
+  const { interval } = state;
+  const [candles, daily, status, saved] = await Promise.all([
+    fetchCandles(t, interval), fetchCandles(t, '1D'), fetchStatus(), t === drawn ? null : fetchDrawings(t),
   ]);
-  if (asset !== state.asset || interval !== state.interval) return; // a newer click won
+  if (t !== ticker() || interval !== state.interval) return; // a newer click won
   bars = candles;
+  days = daily;
   index.clear();
   bars.forEach((b, i) => index.set(b.time, i));
-  lines = maLines(days);
-  editor.setBars(bars, asset, interval);
+  main.setData(bars, intraday(), keepView);
+  makeLines();
+  showLines();
+  editor.setBars(bars, t, interval);
   if (saved) {
     editor.load(saved);
-    drawnAsset = asset;
+    drawn = t;
   }
-  main.setData(bars, lines, intraday(), keepView);
-  showLast();
   delayed.hidden = status.failing.length === 0;
 }
 
-const showAsset = (a: Asset) => {
-  state.asset = a;
-  pickAsset(a);
+/** Shows `asset`, priced in `vs` (by default the one picked before), or in dollars when that is the asset itself. */
+function showChart(asset: Asset, vs = state.vs) {
+  state.asset = asset;
+  state.vs = vs === asset ? null : vs;
+  pickAsset(asset);
+  divide.value = state.vs ?? '';
+  divide.classList.toggle('on', !!state.vs);
+  for (const o of divide.options) o.disabled = o.value === asset;
   return load();
-};
-// Drawings are saved per asset and show on every timeframe; each change is sent to the server straight away.
+}
+// Drawings are saved per chart (a ratio has its own) and show on every timeframe; each change is sent straight away.
 const editor = drawingEditor(main, chartEl, TOOLS, {
-  save: (list) => saveDrawings(state.asset, list), toolDone: () => pickTool('cursor'), showAsset,
+  save: (list) => saveDrawings(ticker(), list), toolDone: () => pickTool('cursor'),
+  showAsset(t) {
+    const [asset, vs = null] = t.split('/') as [Asset, Asset?];
+    return showChart(asset, vs);
+  },
 });
 
-const pickAsset = buttonGroup(toolbar, ASSETS, state.asset, (a) => { state.asset = a; load(); });
-buttonGroup(toolbar, INTERVALS, state.interval, (i) => { state.interval = i; load(); });
+const pickAsset = buttonGroup(toolbar, ASSETS.map(([a, name], i) => [a, name, String(i + 1)]), state.asset, (a) => showChart(a));
+const divide = toolbar.appendChild(document.createElement('select'));
+divide.title = 'Price it in another asset instead of dollars (a ratio chart), e.g. BTC in ounces of gold';
+divide.innerHTML = `<option value="">in USD</option>${ASSETS.map(([a, name]) => `<option value="${a}">in ${name}</option>`).join('')}`;
+divide.onchange = () => {
+  divide.blur(); // so the keys go back to the chart
+  showChart(state.asset, (divide.value || null) as Asset | null);
+};
+buttonGroup(toolbar, INTERVALS.map((i, n) => [i, i, `Shift+${n + 1}`]), state.interval, (i) => { state.interval = i; load(); });
 buttonGroup(toolbar, [['log', 'Log'], ['linear', 'Linear']], state.log ? 'log' : 'linear', (s) => {
   state.log = s === 'log'; main.setLog(state.log); save();
-});
+}, 'L');
 buttonGroup(toolbar, [['candles', 'Candles'], ['line', 'Line']], state.style, (s) => {
   state.style = s; main.setStyle(s); save();
-});
-MAS.forEach((m, i) => toggle(toolbar, m.name, state.mas[i], (on) => {
-  state.mas[i] = on; main.setOverlayVisible(i, on); showLast(); save();
-}));
-const pickTool = buttonGroup(toolbar, [['cursor', 'Cursor'], ...TOOLS.map((t): [string, string] => [t.type, t.label])],
+}, 'C');
+const toggles = ([
+  ['ma1', `${settings.ma[0].length}D`, 'Moving average of daily closes (length and colour in Settings)'],
+  ['ma2', `${settings.ma[1].length}D`, 'Moving average of daily closes (length and colour in Settings)'],
+  ['band', '20W/21W', 'Bull market support band: 20-week SMA and 21-week EMA of weekly closes'],
+  ['halvings', 'Halvings', 'Bitcoin halving dates, and the next one (estimated)'],
+] as const).map(([key, label, title]) => Object.assign(toggle(toolbar, label, state.show.has(key), (on) => {
+  if (on) state.show.add(key);
+  else state.show.delete(key);
+  showLines();
+  save();
+}), { title }));
+const pickTool = buttonGroup(toolbar, [['cursor', 'Cursor'], ...TOOLS.map((t): [string, string, string] => [t.type, t.label, t.key])],
   'cursor', (t) => editor.setTool(t === 'cursor' ? null : t));
 const clear = toolbar.appendChild(document.createElement('div'));
 clear.className = 'group';
-clear.innerHTML = '<button title="Delete all drawings on this asset (Ctrl+Z undoes)">Clear all</button>';
+clear.innerHTML = '<button title="Delete all drawings on this chart (Ctrl+Z undoes)">Clear all</button>';
 clear.onclick = () => {
   const n = editor.count();
-  const name = ASSETS.find(([a]) => a === state.asset)![1];
-  if (n && confirm(`Delete all ${n} drawings on ${name}? (Ctrl+Z brings them back)`)) editor.clear();
+  if (n && confirm(`Delete all ${n} drawings on ${tickerName(ticker())}? (Ctrl+Z brings them back)`)) editor.clear();
 };
 
 // The server downloads new prices every 5 minutes; this shows them without losing your place.
@@ -105,12 +156,20 @@ refresh.onclick = () => {
   load(true).finally(() => (refresh.disabled = false));
 };
 
-// Keys 1-4 switch asset.
-addEventListener('keydown', (e) => {
-  const a = ASSETS[Number(e.key) - 1];
-  if (!a || e.ctrlKey || e.metaKey || e.altKey || a[0] === state.asset) return;
-  showAsset(a[0]);
-});
+// A PNG of what is on screen, named e.g. "BTC-Gold-1D-2026-10-19.png".
+picture.onclick = () => {
+  const a = document.createElement('a');
+  a.href = main.picture(`${tickerName(ticker())} · ${state.interval}`).toDataURL('image/png');
+  a.download = `${tickerName(ticker()).replace(/[ /]+/g, '-')}-${state.interval}-${new Date().toISOString().slice(0, 10)}.png`;
+  a.click();
+};
+shortcut('P', 'Save the chart as a picture', () => picture.click());
+
+settingsPanel(document.getElementById('settings')!, settings, () => {
+  settings.ma.forEach((m, i) => (toggles[i].textContent = `${m.length}D`));
+  makeLines();
+  showLines();
+}, [...shortcuts, ...EDITOR_KEYS]);
 
 main.onHover((time) => {
   if (time === null) return showLast();
@@ -120,5 +179,4 @@ main.onHover((time) => {
 
 main.setLog(state.log);
 main.setStyle(state.style);
-state.mas.forEach((on, i) => main.setOverlayVisible(i, on));
-await load();
+await showChart(state.asset);

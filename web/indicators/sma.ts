@@ -1,6 +1,4 @@
-import type { Candle } from '../../shared/types.ts';
-
-export interface Point { time: number; value: number }
+import type { Candle, Point } from '../../shared/types.ts';
 
 /** Simple moving average of closes, one point per candle once `length` candles exist. */
 export function sma(candles: Candle[], length: number): Point[] {
