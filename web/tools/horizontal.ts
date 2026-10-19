@@ -5,7 +5,7 @@ export const horizontal: Tool = {
   type: 'horizontal',
   label: 'Horizontal',
   clicks: 1,
-  draw(ctx, [a], [p], { width }) {
+  draw(ctx, [a], { points: [p] }, { width }) {
     stroke(ctx, { x: 0, y: a.y }, { x: width, y: a.y });
     label(ctx, formatPrice(p.price), width - 4, a.y, COLOR, 'right');
   },

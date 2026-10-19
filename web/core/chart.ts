@@ -1,5 +1,5 @@
 import { CandlestickSeries, createChart, LineSeries, PriceScaleMode } from 'lightweight-charts';
-import type { CandlestickData, LineData, UTCTimestamp } from 'lightweight-charts';
+import type { CandlestickData, ISeriesPrimitive, LineData, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../../shared/types.ts';
 
 const UP = '#26a69a';
@@ -59,6 +59,17 @@ export function createMainChart(el: HTMLElement) {
       close.applyOptions({ visible: style === 'line' });
     },
     setOverlayVisible: (i: number, visible: boolean) => overlays[i].applyOptions({ visible }),
+    /** Widens the price scale to also fit `range(first, last visible logical bar)`, on candles and line alike. */
+    fit(range: (from: number, to: number) => { minValue: number; maxValue: number } | null) {
+      const primitive: ISeriesPrimitive = {
+        autoscaleInfo(from, to) {
+          const priceRange = range(from, to);
+          return priceRange && { priceRange };
+        },
+      };
+      candles.attachPrimitive(primitive);
+      close.attachPrimitive(primitive);
+    },
     /** Calls back with the bar time under the crosshair, or null when the mouse leaves the bars. */
     onHover(cb: (time: number | null) => void) {
       chart.subscribeCrosshairMove((p) => cb(p.time === undefined ? null : (p.time as number)));

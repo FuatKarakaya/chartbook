@@ -11,5 +11,5 @@ export const ray: Tool = {
   label: 'Ray',
   clicks: 2,
   draw: (ctx, [a, b], _, size) => stroke(ctx, a, far(a, b, size)),
-  hit: ([a, b], x, y, size) => nearSegment(a, far(a, b, size), x, y),
+  hit: ([a, b], x, y, _, size) => nearSegment(a, far(a, b, size), x, y),
 };

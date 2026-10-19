@@ -1,4 +1,4 @@
-import type { Asset, Candle, Interval } from '../shared/types.ts';
+import { ASSET_NAMES, type Asset, type Candle, type Interval } from '../shared/types.ts';
 import { fetchCandles, fetchDrawings, fetchStatus, saveDrawings } from './core/api.ts';
 import { createMainChart, type Style } from './core/chart.ts';
 import { drawingEditor } from './core/drawings.ts';
@@ -7,7 +7,7 @@ import { TOOLS } from './tools/index.ts';
 import { buttonGroup, toggle } from './ui/buttons.ts';
 import { readout } from './ui/readout.ts';
 
-const ASSETS: [Asset, string][] = [['btc', 'BTC'], ['gold', 'Gold'], ['silver', 'Silver'], ['spx', 'S&P 500']];
+const ASSETS = Object.entries(ASSET_NAMES) as [Asset, string][];
 const INTERVALS: [Interval, string][] = [['1h', '1h'], ['4h', '4h'], ['1D', '1D'], ['1W', '1W'], ['1M', '1M']];
 /** Moving averages of daily closes, shown on every timeframe. */
 const MAS = [{ name: '50D', length: 50, color: '#2962ff' }, { name: '200D', length: 200, color: '#ff9800' }];
@@ -57,7 +57,7 @@ async function load(keepView = false) {
   index.clear();
   bars.forEach((b, i) => index.set(b.time, i));
   lines = maLines(days);
-  editor.setBars(bars);
+  editor.setBars(bars, asset, interval);
   if (saved) {
     editor.load(saved);
     drawnAsset = asset;
@@ -67,9 +67,15 @@ async function load(keepView = false) {
   delayed.hidden = status.failing.length === 0;
 }
 
+const showAsset = (a: Asset) => {
+  state.asset = a;
+  pickAsset(a);
+  return load();
+};
 // Drawings are saved per asset and show on every timeframe; each change is sent to the server straight away.
-const editor = drawingEditor(main.chart, main.series, chartEl, TOOLS,
-  (list) => saveDrawings(state.asset, list), () => pickTool('cursor'));
+const editor = drawingEditor(main, chartEl, TOOLS, {
+  save: (list) => saveDrawings(state.asset, list), toolDone: () => pickTool('cursor'), showAsset,
+});
 
 const pickAsset = buttonGroup(toolbar, ASSETS, state.asset, (a) => { state.asset = a; load(); });
 buttonGroup(toolbar, INTERVALS, state.interval, (i) => { state.interval = i; load(); });
@@ -103,9 +109,7 @@ refresh.onclick = () => {
 addEventListener('keydown', (e) => {
   const a = ASSETS[Number(e.key) - 1];
   if (!a || e.ctrlKey || e.metaKey || e.altKey || a[0] === state.asset) return;
-  state.asset = a[0];
-  pickAsset(a[0]);
-  load();
+  showAsset(a[0]);
 });
 
 main.onHover((time) => {

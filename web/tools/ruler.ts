@@ -17,7 +17,7 @@ export const ruler: Tool = {
   clicks: 2,
   snap: true,
   temporary: true,
-  draw(ctx, [a, b], [p, q]) {
+  draw(ctx, [a, b], { points: [p, q] }) {
     changeBox(ctx, a, b, p, q, span(Math.abs(q.time - p.time)));
     for (const end of [a, b]) dot(ctx, end, 3, COLOR);
   },
