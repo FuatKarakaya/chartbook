@@ -1,4 +1,4 @@
-import { ASSET_NAMES, DAILY_ONLY, type Asset, type Candle } from '../shared/types.ts';
+import { ASSETS, DAILY_ONLY, type Asset, type Candle } from '../shared/types.ts';
 import type { Db } from './db.ts';
 import early from './sources/btc-2010-2011.json' with { type: 'json' };
 import { fetchBitstamp } from './sources/bitstamp.ts';
@@ -6,8 +6,7 @@ import { fetchFred } from './sources/fred.ts';
 import { fetchSilver } from './sources/silver.ts';
 import { fetchYahoo } from './sources/yahoo.ts';
 
-export type Stored = '1h' | '1D';
-export const ASSETS = Object.keys(ASSET_NAMES) as Asset[];
+type Stored = '1h' | '1D';
 const stored = (asset: Asset): Stored[] => (DAILY_ONLY.includes(asset) ? ['1D'] : ['1h', '1D']);
 
 const DAY = 86400;
@@ -24,7 +23,7 @@ const DATA_VERSION = 2;
 const REFRESH = { '1h': 2 * DAY, '1D': 10 * DAY, fred: 365 * DAY };
 
 /** Candles for one series since `from` (UTC seconds), from the right source per PLAN.md's data table. */
-export async function fetchSeries(asset: Asset, interval: Stored, from: number): Promise<Candle[]> {
+async function fetchSeries(asset: Asset, interval: Stored, from: number): Promise<Candle[]> {
   if (asset === 'silver') return fetchSilver(interval, from);
   if (asset === 'fed' || asset === 'm2') return fetchFred(FRED[asset], from);
   // The yield is one value per bar like FRED's series (LINE_ONLY): its close.
@@ -68,9 +67,8 @@ async function update(db: Db, asset: Asset, interval: Stored, full: boolean) {
 
 /** Series still to re-download in full after DATA_VERSION rose; the new version is saved once all are done. */
 let redownload: Set<string> | null = null;
-/** When a FRED series is next asked for news: it publishes once a day at most, so hourly, not every 5 minutes. */
+/** When a FRED series is next asked for news (Date.now() time). */
 const due = new Map<string, number>();
-const HOUR = 3600 * 1000;
 
 /** Updates every series once, one at a time to stay polite to the sources. `full` re-downloads everything. */
 export async function updateAll(db: Db, full = false) {
@@ -82,7 +80,7 @@ export async function updateAll(db: Db, full = false) {
       if (!again && Date.now() < (due.get(name) ?? 0)) continue;
       if (!(await update(db, asset, interval, again))) continue;
       redownload?.delete(name);
-      if (asset in FRED) due.set(name, Date.now() + HOUR);
+      if (asset in FRED) due.set(name, Date.now() + FRED_EVERY);
     }
   }
   if (redownload?.size === 0) {
@@ -92,6 +90,8 @@ export async function updateAll(db: Db, full = false) {
 }
 
 const FIVE_MIN = 5 * 60 * 1000;
+/** FRED publishes once a day at most (M2 once a month), so it is asked hourly, not every 5 minutes. */
+const FRED_EVERY = 60 * 60 * 1000;
 
 /** Catch up now, then refresh every 5 minutes. */
 export function startUpdater(db: Db) {

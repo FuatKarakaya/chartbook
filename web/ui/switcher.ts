@@ -1,8 +1,8 @@
-import { ASSET_NAMES, type Asset } from '../../shared/types.ts';
+import { ASSET_NAMES, ASSETS, type Asset } from '../../shared/types.ts';
 import { buttonGroup } from './buttons.ts';
 
 /** Asset buttons with their keys (1-9, then 0), in two labelled groups. */
-const BUTTONS = Object.entries(ASSET_NAMES).map(([a, name], i): [Asset, string, string] => [a as Asset, name, String((i + 1) % 10)]);
+const BUTTONS = ASSETS.map((a, i): [Asset, string, string] => [a, ASSET_NAMES[a], String((i + 1) % 10)]);
 const GROUPS: [string, [Asset, string, string][]][] = [['Markets', BUTTONS.slice(0, 6)], ['Macro', BUTTONS.slice(6)]];
 
 /**

@@ -4,6 +4,7 @@ export const ASSET_NAMES: Record<Asset, string> = {
   btc: 'BTC', eth: 'ETH', gold: 'Gold', silver: 'Silver', spx: 'S&P 500', ixic: 'Nasdaq',
   dxy: 'DXY', tnx: '10Y', fed: 'Fed rate', m2: 'M2',
 };
+export const ASSETS = Object.keys(ASSET_NAMES) as Asset[];
 /** One value a day or month, not OHLC: stored as open = high = low = close and always drawn as a line. */
 export const LINE_ONLY: Asset[] = ['tnx', 'fed', 'm2'];
 /** From FRED, which has no hourly data (so no 1h/4h). */

@@ -70,7 +70,8 @@ function makeLines() {
 }
 const shownLines = () => lines.filter((l) => state.show.has(l.key));
 const intraday = () => state.interval === '1h' || state.interval === '4h';
-const showLast = () => show(bars, bars.length - 1, shownLines(), intraday(), lineOnly());
+const showBar = (i: number) => show(bars, i, shownLines(), intraday(), lineOnly());
+const showLast = () => showBar(bars.length - 1);
 /** Puts what is switched on over the bars. */
 function showLines() {
   main.setLines(shownLines());
@@ -116,9 +117,10 @@ function showChart(asset: Asset, vs = state.vs) {
     state.interval = '1D';
     pickInterval('1D');
   }
+  const style = lineOnly() ? 'line' : state.style;
   pickStyle.disable(lineOnly() ? ['candles'] : []);
-  pickStyle(lineOnly() ? 'line' : state.style);
-  main.setStyle(lineOnly() ? 'line' : state.style);
+  pickStyle(style);
+  main.setStyle(style);
   toggles.slice(0, 3).forEach((b) => (b.disabled = monthly())); // the averages and band, not halvings
   return load();
 }
@@ -187,7 +189,7 @@ settingsPanel(document.getElementById('settings')!, settings, () => {
 main.onHover((time) => {
   if (time === null) return showLast();
   const i = index.get(time);
-  if (i !== undefined) show(bars, i, shownLines(), intraday(), lineOnly());
+  if (i !== undefined) showBar(i);
 });
 
 main.setLog(state.log);
