@@ -6,6 +6,7 @@ const WEEK = 7 * 86400;
 export const measure: Tool = {
   type: 'measure',
   label: 'Measure',
+  key: 'M',
   clicks: 2,
   draw: (ctx, [a, b], { points: [p, q] }) => changeBox(ctx, a, b, p, q, `${(Math.abs(q.time - p.time) / WEEK).toFixed(1)} weeks`),
   hit: ([a, b], x, y) =>

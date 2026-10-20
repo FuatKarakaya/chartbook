@@ -97,7 +97,13 @@ shared/  types.ts  time.ts  cycles.ts
   end (time), biggest move (size; dragging it past the start flips). A bar under the readout for the selected drawing: flip, colour,
   opacity, copy onto another asset (starts at its last candle), Delete (every tool gets the Delete button). On 1h/4h a stretch
   older than the hourly history is copied from daily candles.
-- [ ] M5 Settings panel (MA length/colour), keyboard shortcuts, ratio charts, 20W/21W band, halving lines, PNG export.
+- [x] M5 Settings panel (MA length/colour), keyboard shortcuts, ratio charts, 20W/21W band, halving lines, PNG export.
+  Settings (both MA lengths + colours, band colour) are kept in the browser; the panel also lists the keys: 1-4 asset,
+  Shift+1-5 timeframe, L log/linear, C candles/line, T/R/H/M/U/F tools, P picture. Ratio = an asset "in" another
+  (BTC in Gold, tickers like btc/gold): divided bar by bar on the server, the divisor holding its last close where it
+  has no bar (S&P at the weekend); own drawings; MAs/band of the ratio. Band = 20W SMA + 21W EMA of weekly closes as
+  each day saw them (no peeking at the week's close), shaded between. Halving lines on every asset, the next (2028)
+  dotted as an estimate. Picture = the chart with its drawings, a title and the line names.
 - [ ] M6 More data: ETH, Nasdaq, DXY, US 10Y, Fed funds rate, M2 (FRED source, line-only series, grouped switcher). Done: all load with the start dates above.
 - [ ] M7 Cycles page: BTC + ETH cycle-bottom ROI chart with the controls above. Tests: ROI maths, data-length cut-offs.
 - [ ] M8 Seasonality page: monthly returns table with election- and halving-cycle filters. Tests: monthly returns, filters, stats rows.

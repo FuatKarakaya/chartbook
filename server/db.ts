@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import type { Asset, Candle, Drawing, Interval } from '../shared/types.ts';
+import type { Asset, Candle, Drawing, Interval, Ticker } from '../shared/types.ts';
 
 export type Db = ReturnType<typeof openDb>;
 
@@ -37,12 +37,12 @@ export function openDb(path = 'data/chartbook.db') {
       db.exec('COMMIT');
     },
     candles: (asset: Asset, interval: Interval) => select.all(asset, interval) as unknown as Candle[],
-    drawings: (asset: Asset) => drawingsOf.all(asset).map((r) => JSON.parse(r.json as string) as Drawing),
-    /** Replaces all of an asset's drawings; the page always sends its full list, oldest first. */
-    saveDrawings(asset: Asset, drawings: Drawing[]) {
+    drawings: (ticker: Ticker) => drawingsOf.all(ticker).map((r) => JSON.parse(r.json as string) as Drawing),
+    /** Replaces all of a chart's drawings (an asset's, or a ratio's); the page always sends its full list, oldest first. */
+    saveDrawings(ticker: Ticker, drawings: Drawing[]) {
       db.exec('BEGIN');
-      clearDrawings.run(asset);
-      for (const d of drawings) insertDrawing.run(d.id, asset, JSON.stringify(d));
+      clearDrawings.run(ticker);
+      for (const d of drawings) insertDrawing.run(d.id, ticker, JSON.stringify(d));
       db.exec('COMMIT');
     },
     lastTime: (asset: Asset, interval: Interval) => (last.get(asset, interval) as { t: number | null }).t,

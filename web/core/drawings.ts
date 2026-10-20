@@ -1,4 +1,4 @@
-import type { Anchor, Asset, Drawing, PointDrawing } from '../../shared/types.ts';
+import type { Anchor, Drawing, PointDrawing, Ticker } from '../../shared/types.ts';
 import type { createMainChart } from './chart.ts';
 import { drawingLayer } from './layer.ts';
 import { handlesOf, type Edit, type Px, type Tool } from './tool.ts';
@@ -11,7 +11,7 @@ interface App {
   /** A tool finished or was cancelled. */
   toolDone(): void;
   /** Switches the chart to another asset (a fractal copied onto it). */
-  showAsset(asset: Asset): Promise<void>;
+  showAsset(asset: Ticker): Promise<void>;
 }
 
 /**
@@ -155,6 +155,7 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
   });
 
   addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return; // typing in a box (Settings, a fractal's colour)
     if (e.key === 'Escape') {
       if (tool) finishTool();
       select(null);
@@ -172,7 +173,7 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
   });
 
   return {
-    /** Shows another asset's drawings; undo history starts fresh. */
+    /** Shows another chart's drawings; undo history starts fresh. */
     load(list: Drawing[]) {
       drawings = list;
       saved = JSON.stringify(list);
@@ -188,7 +189,7 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
       layer.redraw();
     },
     count: () => drawings.length,
-    /** Deletes every drawing on this asset (Ctrl+Z brings them back). */
+    /** Deletes every drawing on this chart (Ctrl+Z brings them back). */
     clear() {
       drawings = [];
       select(null);

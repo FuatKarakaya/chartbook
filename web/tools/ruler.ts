@@ -14,6 +14,7 @@ export const span = (s: number) =>
 export const ruler: Tool = {
   type: 'ruler',
   label: 'Ruler',
+  key: 'U',
   clicks: 2,
   snap: true,
   temporary: true,

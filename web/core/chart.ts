@@ -1,9 +1,11 @@
 import { CandlestickSeries, createChart, LineSeries, PriceScaleMode } from 'lightweight-charts';
-import type { CandlestickData, ISeriesPrimitive, LineData, UTCTimestamp } from 'lightweight-charts';
-import type { Candle } from '../../shared/types.ts';
+import type { CandlestickData, IPanePrimitive, ISeriesApi, ISeriesPrimitive, LineData, Logical, UTCTimestamp } from 'lightweight-charts';
+import type { Candle, Point } from '../../shared/types.ts';
+import { timeline } from './timeline.ts';
 
 const UP = '#26a69a';
 const DOWN = '#ef5350';
+const MARK = '#9598a1';
 /** Empty bars kept right of the last candle, so drawings can project into the future. */
 const RIGHT_SPACE = 40;
 /** Bars shown when a chart opens; older history is a scroll or zoom away. */
@@ -13,7 +15,10 @@ const num = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 });
 export const formatPrice = (p: number) => num.format(p);
 
 export type Style = 'candles' | 'line';
-export interface Line { points: { time: number; value: number }[]; color: string }
+/** A line over the bars (a moving average), one point per bar from some bar on (see onBars). */
+export interface Line { name: string; color: string; points: Point[]; /** Shades the gap to the line before it (a band). */ band?: boolean }
+/** A vertical line at a time (a BTC halving), labelled at the bottom; dotted when it is an estimate. */
+export interface Mark { time: number; label: string; estimate?: boolean }
 
 export function createMainChart(el: HTMLElement) {
   const chart = createChart(el, {
@@ -25,32 +30,109 @@ export function createMainChart(el: HTMLElement) {
     rightPriceScale: { mode: PriceScaleMode.Logarithmic, borderColor: '#2a2e39' },
     timeScale: { borderColor: '#2a2e39', rightOffset: RIGHT_SPACE },
   });
+  const time = chart.timeScale();
   const candles = chart.addSeries(CandlestickSeries, {
     upColor: UP, downColor: DOWN, borderVisible: false, wickUpColor: UP, wickDownColor: DOWN,
   });
   const close = chart.addSeries(LineSeries, { color: '#d1d4dc', lineWidth: 2, visible: false });
-  const overlays = [0, 1].map(() =>
-    chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, crosshairMarkerVisible: false }));
+  const series: ISeriesApi<'Line'>[] = []; // one per overlay line, made as needed
+  let bars: Candle[] = [];
+  let lines: Line[] = [];
+  let marks: Mark[] = [];
+  let line: ReturnType<typeof timeline>;
+
+  // logicalToCoordinate only takes whole bars, and a daily point on the weekly chart sits between two.
+  const xAt = (l: number) => {
+    const i = Math.floor(l);
+    const x = time.logicalToCoordinate(i as Logical)!;
+    return x + (l - i) * (time.logicalToCoordinate((i + 1) as Logical)! - x);
+  };
+  const x = (t: number) => xAt(line.toLogical(t));
+  const y = (price: number) => candles.priceToCoordinate(price) ?? NaN;
+
+  /** Fills each band between its two lines, over the bars on screen. */
+  function shade(ctx: CanvasRenderingContext2D) {
+    const range = time.getVisibleLogicalRange();
+    const n = bars.length;
+    lines.forEach((l, i) => {
+      if (!l.band || !range) return;
+      const [a, b] = [l.points, lines[i - 1].points];
+      const from = Math.max(0, Math.floor(range.from), n - a.length, n - b.length);
+      const to = Math.min(n - 1, Math.ceil(range.to));
+      ctx.beginPath();
+      for (let k = from; k <= to; k++) ctx.lineTo(xAt(k), y(a[k - n + a.length].value));
+      for (let k = to; k >= from; k--) ctx.lineTo(xAt(k), y(b[k - n + b.length].value));
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = l.color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function drawMarks(ctx: CanvasRenderingContext2D, height: number) {
+    ctx.strokeStyle = ctx.fillStyle = MARK;
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.lineWidth = 1;
+    for (const m of marks) {
+      const at = Math.round(x(m.time)) + 0.5;
+      ctx.setLineDash(m.estimate ? [2, 4] : [6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(at, 0);
+      ctx.lineTo(at, height);
+      ctx.stroke();
+      ctx.fillText(m.label, at + 4, height - 6);
+    }
+    ctx.setLineDash([]);
+  }
+
+  // Behind the candles: band shading and the marks.
+  let redraw = () => {};
+  const under: IPanePrimitive = {
+    attached: ({ requestUpdate }) => void (redraw = requestUpdate),
+    paneViews: () => [{
+      zOrder: () => 'bottom',
+      renderer: () => ({
+        draw: (target) => target.useMediaCoordinateSpace(({ context, mediaSize }) => {
+          shade(context);
+          drawMarks(context, mediaSize.height);
+        }),
+      }),
+    }],
+  };
+  chart.panes()[0].attachPrimitive(under);
 
   return {
     chart,
     /** The candle series; its price scale places drawings (it converts prices even while hidden in line mode). */
     series: candles,
-    /**
-     * Replaces everything shown: bars, their close line, and the overlay lines (e.g. the 50D/200D MAs).
-     * Jumps to the latest bars, unless `keepView` (a refresh of the same chart) keeps the current zoom and scroll.
-     */
-    setData(bars: Candle[], lines: Line[], intraday: boolean, keepView = false) {
-      const view = chart.timeScale().getVisibleLogicalRange();
+    /** Replaces the bars and their close line. Jumps to the latest bars, unless `keepView` (a refresh of the same chart). */
+    setData(candleList: Candle[], intraday: boolean, keepView = false) {
+      const view = time.getVisibleLogicalRange();
+      bars = candleList;
+      line = timeline(bars.map((b) => b.time));
       chart.applyOptions({ timeScale: { timeVisible: intraday } });
+      // Price steps fine enough for the lowest price (silver in BTC is 0.0007), or the price scale shows no marks.
+      const precision = Math.max(2, 3 - Math.floor(Math.log10(bars.reduce((m, b) => Math.min(m, b.low), Infinity))));
+      for (const s of [candles, close]) s.applyOptions({ priceFormat: { type: 'price', precision, minMove: 10 ** -precision } });
       candles.setData(bars as CandlestickData<UTCTimestamp>[]);
       close.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })));
-      overlays.forEach((s, i) => {
-        s.setData(lines[i].points as LineData<UTCTimestamp>[]);
-        s.applyOptions({ color: lines[i].color });
-      });
-      chart.timeScale().setVisibleLogicalRange(keepView && view ? view
+      time.setVisibleLogicalRange(keepView && view ? view
         : { from: Math.max(0, bars.length - START_BARS), to: bars.length - 1 + RIGHT_SPACE });
+    },
+    /** Replaces the lines over the bars (call after setData); each one's latest value shows on the price scale. */
+    setLines(list: Line[]) {
+      lines = list;
+      while (series.length < lines.length) {
+        series.push(chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, crosshairMarkerVisible: false }));
+      }
+      series.forEach((s, i) => {
+        s.setData((lines[i]?.points ?? []) as LineData<UTCTimestamp>[]);
+        if (lines[i]) s.applyOptions({ color: lines[i].color });
+      });
+    },
+    setMarks(list: Mark[]) {
+      marks = list;
+      redraw();
     },
     setLog: (log: boolean) =>
       chart.applyOptions({ rightPriceScale: { mode: log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal } }),
@@ -58,7 +140,11 @@ export function createMainChart(el: HTMLElement) {
       candles.applyOptions({ visible: style === 'candles' });
       close.applyOptions({ visible: style === 'line' });
     },
-    setOverlayVisible: (i: number, visible: boolean) => overlays[i].applyOptions({ visible }),
+    /** A time's logical bar position and back (may be fractional: between bars, or in the empty space on the right). */
+    toLogical: (t: number) => line.toLogical(t),
+    toTime: (l: number) => line.toTime(l),
+    /** Where a time is on screen, also between bars and in the empty space on the right. */
+    x,
     /** Widens the price scale to also fit `range(first, last visible logical bar)`, on candles and line alike. */
     fit(range: (from: number, to: number) => { minValue: number; maxValue: number } | null) {
       const primitive: ISeriesPrimitive = {
@@ -73,6 +159,24 @@ export function createMainChart(el: HTMLElement) {
     /** Calls back with the bar time under the crosshair, or null when the mouse leaves the bars. */
     onHover(cb: (time: number | null) => void) {
       chart.subscribeCrosshairMove((p) => cb(p.time === undefined ? null : (p.time as number)));
+    },
+    /** The chart as a picture, drawings included, with `title` and the lines' names written top left. */
+    picture(title: string) {
+      const canvas = chart.takeScreenshot(true);
+      const ctx = canvas.getContext('2d')!;
+      const scale = canvas.width / el.clientWidth;
+      ctx.scale(scale, scale);
+      ctx.font = '600 14px system-ui, sans-serif';
+      ctx.fillStyle = '#d1d4dc';
+      ctx.fillText(title, 12, 22);
+      let left = 24 + ctx.measureText(title).width;
+      ctx.font = '13px system-ui, sans-serif';
+      for (const l of lines) {
+        ctx.fillStyle = l.color;
+        ctx.fillText(l.name, left, 22);
+        left += ctx.measureText(l.name).width + 10;
+      }
+      return canvas;
     },
   };
 }

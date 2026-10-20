@@ -4,13 +4,15 @@ header { display: flex; align-items: center; gap: 12px; padding: 6px 12px; borde
 header em { color: #f7a600; font-style: normal; }
 nav { display: flex; flex-wrap: wrap; gap: 12px; }
 .group { display: flex; }
-.group button, .drawing-bar button {
+.group button, .drawing-bar button, nav select, .settings button {
   background: none; color: #b2b5be; border: 1px solid #2a2e39; padding: 4px 10px; font: inherit; cursor: pointer;
+  white-space: nowrap;
 }
 .group button + button { border-left: none; }
-.group button:hover, .drawing-bar button:hover { background: #2a2e39; }
+.group button:hover, .drawing-bar button:hover, nav select:hover, .settings button:hover { background: #2a2e39; }
+nav select option { background: #1e222d; }
 .group button:disabled { opacity: 0.5; cursor: default; }
-.group button.on, .drawing-bar button.on { background: #2962ff; border-color: #2962ff; color: #fff; }
+.group button.on, .drawing-bar button.on, nav select.on { background: #2962ff; border-color: #2962ff; color: #fff; }
 main { flex: 1; min-height: 0; position: relative; }
 #chart { position: absolute; inset: 0; }
 #readout { position: absolute; top: 8px; left: 12px; z-index: 3; pointer-events: none; font-size: 13px; }
@@ -26,3 +28,16 @@ main { flex: 1; min-height: 0; position: relative; }
 .drawing-bar[hidden] { display: none; }
 .drawing-bar input[type=color] { width: 28px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; }
 .drawing-bar input[type=range] { width: 80px; }
+/* Settings panel, over the chart's top right. */
+.settings {
+  position: absolute; top: 8px; right: 70px; z-index: 4; width: 360px; padding: 4px 14px 12px;
+  background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; font-size: 13px;
+}
+.settings[hidden] { display: none; }
+.settings h3 { font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+.settings div { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.settings input[type=number] { width: 56px; background: #131722; color: inherit; border: 1px solid #2a2e39; padding: 3px 4px; font: inherit; }
+.settings input[type=color] { width: 28px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; }
+.settings dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+.settings dt { color: #9598a1; }
+.settings dd { margin: 0; }
