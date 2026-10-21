@@ -1,6 +1,14 @@
-export type Asset = 'btc' | 'gold' | 'silver' | 'spx';
-/** Display names, in switcher order (keys 1-4). */
-export const ASSET_NAMES: Record<Asset, string> = { btc: 'BTC', gold: 'Gold', silver: 'Silver', spx: 'S&P 500' };
+export type Asset = 'btc' | 'eth' | 'gold' | 'silver' | 'spx' | 'ixic' | 'dxy' | 'tnx' | 'fed' | 'm2';
+/** Display names, in switcher order (keys 1-9, 0): markets, then macro (US Dollar Index, 10Y yield, Fed funds rate, M2). */
+export const ASSET_NAMES: Record<Asset, string> = {
+  btc: 'BTC', eth: 'ETH', gold: 'Gold', silver: 'Silver', spx: 'S&P 500', ixic: 'Nasdaq',
+  dxy: 'DXY', tnx: '10Y', fed: 'Fed rate', m2: 'M2',
+};
+export const ASSETS = Object.keys(ASSET_NAMES) as Asset[];
+/** One value a day or month, not OHLC: stored as open = high = low = close and always drawn as a line. */
+export const LINE_ONLY: Asset[] = ['tnx', 'fed', 'm2'];
+/** From FRED, which has no hourly data (so no 1h/4h). */
+export const DAILY_ONLY: Asset[] = ['fed', 'm2'];
 export type Interval = '1h' | '4h' | '1D' | '1W' | '1M';
 
 /** What a chart shows: an asset, or one asset priced in another (a ratio chart, e.g. 'btc/gold' = BTC in ounces of gold). */

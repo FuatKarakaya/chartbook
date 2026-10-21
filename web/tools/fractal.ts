@@ -1,4 +1,4 @@
-import { ASSET_NAMES, tickerName, type Anchor, type Asset, type Candle, type Drawing, type Ticker } from '../../shared/types.ts';
+import { ASSET_NAMES, ASSETS, tickerName, type Anchor, type Candle, type Drawing, type Ticker } from '../../shared/types.ts';
 import { GRAB, label, type Px, type Tool, type View } from '../core/tool.ts';
 
 /** A ghost copy of a stretch of candles (PLAN.md's stored shape). */
@@ -182,7 +182,7 @@ export const fractal: Tool<Fractal> = {
     };
     color.onchange = opacity.onchange = () => edit.changed(true);
     // A copy on another asset starts from that asset's last candle, like a new one.
-    const copies = (Object.keys(ASSET_NAMES) as Asset[]).filter((a) => a !== view.asset).map((asset) =>
+    const copies = ASSETS.filter((a) => a !== view.asset).map((asset) =>
       button(ASSET_NAMES[asset], () => edit.copyTo(asset, (bars) => ({
         ...structuredClone(f), anchorTime: bars[bars.length - 1].time, anchorPrice: bars[bars.length - 1].close,
       })), `Copy this fractal onto ${ASSET_NAMES[asset]}, starting at its last candle`));

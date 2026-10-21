@@ -32,6 +32,7 @@ main { flex: 1; min-height: 0; position: relative; }
 .settings {
   position: absolute; top: 8px; right: 70px; z-index: 4; width: 360px; padding: 4px 14px 12px;
   background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; font-size: 13px;
+  max-height: calc(100% - 16px); overflow-y: auto; box-sizing: border-box;
 }
 .settings[hidden] { display: none; }
 .settings h3 { font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
@@ -41,3 +42,5 @@ main { flex: 1; min-height: 0; position: relative; }
 .settings dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
 .settings dt { color: #9598a1; }
 .settings dd { margin: 0; }
+/* An asset group's name before its buttons (Markets, Macro). */
+.labelled { display: flex; align-items: center; gap: 6px; color: #787b86; font-size: 12px; }

@@ -104,6 +104,11 @@ shared/  types.ts  time.ts  cycles.ts
   has no bar (S&P at the weekend); own drawings; MAs/band of the ratio. Band = 20W SMA + 21W EMA of weekly closes as
   each day saw them (no peeking at the week's close), shaded between. Halving lines on every asset, the next (2028)
   dotted as an estimate. Picture = the chart with its drawings, a title and the line names.
-- [ ] M6 More data: ETH, Nasdaq, DXY, US 10Y, Fed funds rate, M2 (FRED source, line-only series, grouped switcher). Done: all load with the start dates above.
+- [x] M6 More data: ETH, Nasdaq, DXY, US 10Y, Fed funds rate, M2 (FRED source, line-only series, grouped switcher). Done: all load with the start dates above.
+  ETH joins Bitstamp (from 2017-08-17) to Yahoo (from 2017-11-09). 10Y keeps only Yahoo's close, like the FRED series.
+  Picking a rate (10Y, Fed rate) switches to Linear, then picking a non-rate switches back to Log; between two of a kind
+  the scale stays as picked. Line-only: Candles greyed out, readout shows just C. A ratio with Fed rate or M2 has no 1h/4h
+  either. M2 is monthly, so its 50D/200D/band buttons are greyed out. The "in USD" list is grouped the same way.
+  FRED refreshes look back a year, as M2 gets revised.
 - [ ] M7 Cycles page: BTC + ETH cycle-bottom ROI chart with the controls above. Tests: ROI maths, data-length cut-offs.
 - [ ] M8 Seasonality page: monthly returns table with election- and halving-cycle filters. Tests: monthly returns, filters, stats rows.

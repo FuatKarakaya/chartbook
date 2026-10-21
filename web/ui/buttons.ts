@@ -21,7 +21,7 @@ addEventListener('keydown', (e) => {
 /**
  * A row of toggle buttons; the picked one is highlighted and clicking it again does nothing.
  * An option's third entry is its shortcut key; the group's `key` steps to the next option (log -> linear -> log).
- * Returns a setter for changing the pick from code.
+ * Returns a setter for changing the pick from code, whose `disable` greys out options (no click, no key).
  */
 export function buttonGroup<T extends string>(
   parent: HTMLElement, options: [T, string, string?][], current: T, onPick: (value: T) => void, key?: string,
@@ -53,7 +53,9 @@ export function buttonGroup<T extends string>(
     buttons.forEach((b, i) => b.classList.toggle('on', options[i][0] === value));
   };
   select(current);
-  return select;
+  return Object.assign(select, {
+    disable: (values: T[]) => buttons.forEach((b, i) => (b.disabled = values.includes(options[i][0]))),
+  });
 }
 
 /** One on/off button, lit while on. */

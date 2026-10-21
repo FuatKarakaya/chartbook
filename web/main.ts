@@ -1,4 +1,4 @@
-import { ASSET_NAMES, tickerName, type Asset, type Candle, type Interval, type Ticker } from '../shared/types.ts';
+import { DAILY_ONLY, LINE_ONLY, tickerName, type Asset, type Candle, type Interval, type Ticker } from '../shared/types.ts';
 import { fetchCandles, fetchDrawings, fetchStatus, saveDrawings } from './core/api.ts';
 import { createMainChart, type Line, type Style } from './core/chart.ts';
 import { drawingEditor } from './core/drawings.ts';
@@ -9,9 +9,11 @@ import { TOOLS } from './tools/index.ts';
 import { buttonGroup, shortcut, shortcuts, toggle } from './ui/buttons.ts';
 import { readout } from './ui/readout.ts';
 import { loadSettings, settingsPanel } from './ui/settings.ts';
+import { assetSwitcher } from './ui/switcher.ts';
 
-const ASSETS = Object.entries(ASSET_NAMES) as [Asset, string][];
 const INTERVALS: Interval[] = ['1h', '4h', '1D', '1W', '1M'];
+/** Open on a linear scale. */
+const RATES: Asset[] = ['tnx', 'fed'];
 /** Keys the drawing editor handles itself, for the shortcut list. */
 const EDITOR_KEYS = [
   { key: 'Shift+click', label: 'Ruler' }, { key: 'Esc', label: 'Stop drawing, unselect' },
@@ -50,10 +52,15 @@ let drawn: Ticker | null = null; // whose drawings are on screen
 let lines: (Line & { key: string })[] = [];
 const index = new Map<number, number>(); // bar time -> position, for the hover readout
 
+/** M2 has one value a month: no daily closes for the moving averages and band. */
+const monthly = () => state.asset === 'm2';
+/** Drawn as a line, and the readout shows one value. */
+const lineOnly = () => LINE_ONLY.includes(state.asset);
+
 /** The lines over the bars, all from daily candles, so they agree on every timeframe. */
 function makeLines() {
   const weekly = band(days);
-  lines = [
+  lines = monthly() ? [] : [
     ...settings.ma.map((m, i) => ({
       key: `ma${i + 1}`, name: `${m.length}D`, color: m.color, points: onBars(sma(days, m.length), bars),
     })),
@@ -63,7 +70,8 @@ function makeLines() {
 }
 const shownLines = () => lines.filter((l) => state.show.has(l.key));
 const intraday = () => state.interval === '1h' || state.interval === '4h';
-const showLast = () => show(bars, bars.length - 1, shownLines(), intraday());
+const showBar = (i: number) => show(bars, i, shownLines(), intraday(), lineOnly());
+const showLast = () => showBar(bars.length - 1);
 /** Puts what is switched on over the bars. */
 function showLines() {
   main.setLines(shownLines());
@@ -97,12 +105,23 @@ async function load(keepView = false) {
 
 /** Shows `asset`, priced in `vs` (by default the one picked before), or in dollars when that is the asset itself. */
 function showChart(asset: Asset, vs = state.vs) {
+  // Rates open on a linear scale and the rest on log; between two of a kind the scale stays as picked.
+  if (RATES.includes(asset) !== RATES.includes(state.asset)) setLog(!RATES.includes(asset));
   state.asset = asset;
   state.vs = vs === asset ? null : vs;
-  pickAsset(asset);
-  divide.value = state.vs ?? '';
-  divide.classList.toggle('on', !!state.vs);
-  for (const o of divide.options) o.disabled = o.value === asset;
+  showPick(asset, state.vs);
+  // Greyed out where the chart can't show it: 1h/4h without hourly data (FRED), candles for a line, averages on M2.
+  const daily = ticker().split('/').some((a) => DAILY_ONLY.includes(a as Asset));
+  pickInterval.disable(daily ? ['1h', '4h'] : []);
+  if (daily && intraday()) {
+    state.interval = '1D';
+    pickInterval('1D');
+  }
+  const style = lineOnly() ? 'line' : state.style;
+  pickStyle.disable(lineOnly() ? ['candles'] : []);
+  pickStyle(style);
+  main.setStyle(style);
+  toggles.slice(0, 3).forEach((b) => (b.disabled = monthly())); // the averages and band, not halvings
   return load();
 }
 // Drawings are saved per chart (a ratio has its own) and show on every timeframe; each change is sent straight away.
@@ -114,19 +133,15 @@ const editor = drawingEditor(main, chartEl, TOOLS, {
   },
 });
 
-const pickAsset = buttonGroup(toolbar, ASSETS.map(([a, name], i) => [a, name, String(i + 1)]), state.asset, (a) => showChart(a));
-const divide = toolbar.appendChild(document.createElement('select'));
-divide.title = 'Price it in another asset instead of dollars (a ratio chart), e.g. BTC in ounces of gold';
-divide.innerHTML = `<option value="">in USD</option>${ASSETS.map(([a, name]) => `<option value="${a}">in ${name}</option>`).join('')}`;
-divide.onchange = () => {
-  divide.blur(); // so the keys go back to the chart
-  showChart(state.asset, (divide.value || null) as Asset | null);
+const showPick = assetSwitcher(toolbar, state.asset, showChart);
+const pickInterval = buttonGroup(toolbar, INTERVALS.map((i, n) => [i, i, `Shift+${n + 1}`]), state.interval, (i) => {
+  state.interval = i; load();
+});
+const setLog = (log: boolean) => {
+  state.log = log; main.setLog(log); pickScale(log ? 'log' : 'linear'); save();
 };
-buttonGroup(toolbar, INTERVALS.map((i, n) => [i, i, `Shift+${n + 1}`]), state.interval, (i) => { state.interval = i; load(); });
-buttonGroup(toolbar, [['log', 'Log'], ['linear', 'Linear']], state.log ? 'log' : 'linear', (s) => {
-  state.log = s === 'log'; main.setLog(state.log); save();
-}, 'L');
-buttonGroup(toolbar, [['candles', 'Candles'], ['line', 'Line']], state.style, (s) => {
+const pickScale = buttonGroup(toolbar, [['log', 'Log'], ['linear', 'Linear']], state.log ? 'log' : 'linear', (s) => setLog(s === 'log'), 'L');
+const pickStyle = buttonGroup(toolbar, [['candles', 'Candles'], ['line', 'Line']], state.style, (s) => {
   state.style = s; main.setStyle(s); save();
 }, 'C');
 const toggles = ([
@@ -174,9 +189,8 @@ settingsPanel(document.getElementById('settings')!, settings, () => {
 main.onHover((time) => {
   if (time === null) return showLast();
   const i = index.get(time);
-  if (i !== undefined) show(bars, i, shownLines(), intraday());
+  if (i !== undefined) showBar(i);
 });
 
 main.setLog(state.log);
-main.setStyle(state.style);
 await showChart(state.asset);
