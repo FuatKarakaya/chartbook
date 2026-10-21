@@ -5,6 +5,8 @@ export const ASSET_NAMES: Record<Asset, string> = {
   dxy: 'DXY', tnx: '10Y', fed: 'Fed rate', m2: 'M2',
 };
 export const ASSETS = Object.keys(ASSET_NAMES) as Asset[];
+/** The switcher's two labelled groups. */
+export const ASSET_GROUPS: [string, Asset[]][] = [['Markets', ASSETS.slice(0, 6)], ['Macro', ASSETS.slice(6)]];
 /** One value a day or month, not OHLC: stored as open = high = low = close and always drawn as a line. */
 export const LINE_ONLY: Asset[] = ['tnx', 'fed', 'm2'];
 /** From FRED, which has no hourly data (so no 1h/4h). */

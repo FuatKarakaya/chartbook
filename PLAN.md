@@ -114,4 +114,11 @@ shared/  types.ts  time.ts  cycles.ts
   Header links "Chart · Cycles" (Seasonality joins in M8). Opens on To next bottom; 3 months out = 3 calendar months
   after the peak. With the mouse off the chart the readout shows the newest shown cycle's last day (today, or its peak), to compare the others with it.
   Options and hidden cycles live in the address bar. ui/buttons.ts moved to core/ so both pages can use it.
-- [ ] M8 Seasonality page: monthly returns table with election- and halving-cycle filters. Tests: monthly returns, filters, stats rows.
+- [x] M8 Seasonality page: monthly returns table with election- and halving-cycle filters. Tests: monthly returns, filters, stats rows.
+  Newest year on top; the month names and the three stats rows stay in view while the years scroll. Full year = the
+  year's months compounded (its last close over last December's). Faded and left out of the stats: the running month,
+  the running year, and a first year the data starts partway through (BTC 2010 = Aug-Dec). Colour is full strength from
+  the 75th percentile change size of the shown table (full-year column scaled on its own), so BTC and S&P are both readable.
+  Elections and halvings both fall in years divisible by 4, so the two filter rows pick the same years: Midterm lights +2.
+  Picking the first / last year in the lists means "from the start" / "up to the latest". Asset keys 1-9, 0 work here too;
+  options live in the address bar. The asset buttons moved to core/ so the Chart and Seasonality pages share them.
