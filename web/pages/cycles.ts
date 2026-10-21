@@ -1,21 +1,19 @@
-// Cycles page: one line per market cycle, x = days since that cycle's bottom, y = ROI (close / bottom close).
+// Cycles page: one line per BTC market cycle, x = days since that cycle's bottom, y = ROI (close / bottom close).
 import { createOptionsChart, LineSeries, PriceScaleMode, type ISeriesApi } from 'lightweight-charts';
-import { currentRoi, CYCLES, cycleLines, type CycleAsset, type CycleLine, type Length } from '../../shared/cycles.ts';
-import { ASSET_NAMES, type Candle } from '../../shared/types.ts';
+import { currentRoi, CYCLES, cycleLines, type CycleLine, type Length } from '../../shared/cycles.ts';
+import type { Candle } from '../../shared/types.ts';
 import { fetchCandles } from '../core/api.ts';
 import { buttonGroup } from '../core/buttons.ts';
 
-/** One colour per cycle, by its bottom year, so a cycle keeps it on BTC and ETH and with every option. */
+/** One colour per cycle, by its bottom year, so a cycle keeps it with every option. */
 const COLORS: Record<number, string> = { 2010: '#3987e5', 2011: '#d95926', 2015: '#199e70', 2018: '#c98500', 2022: '#d55181' };
 const DAY = 86400;
 const formatRoi = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 3 }).format;
 const date = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
-const month = (day: string) => new Date(day).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
 
 // The view lives in the address bar, so a reload or bookmark keeps it.
 const params = new URLSearchParams(location.search);
 const state = {
-  asset: (params.get('asset') ?? 'btc') as CycleAsset,
   length: (params.get('length') ?? 'bottom') as Length,
   peak: (params.get('peak') ?? 'first') as 'first' | 'second',
   combine: (params.get('combine') ?? 'no') as 'no' | 'yes',
@@ -24,7 +22,7 @@ const state = {
   hidden: new Set(params.get('hide')?.split(',')),
 };
 const save = () => history.replaceState(null, '', `?${new URLSearchParams({
-  asset: state.asset, length: state.length, peak: state.peak, combine: state.combine, scale: state.scale,
+  length: state.length, peak: state.peak, combine: state.combine, scale: state.scale,
   ...(state.hidden.size && { hide: [...state.hidden].join(',') }),
 })}`);
 
@@ -64,8 +62,8 @@ function showDay(day: number) {
 function draw() {
   save();
   for (const r of rows) chart.removeSeries(r.series);
-  const lines = cycleLines(days, CYCLES[state.asset], {
-    length: state.length, secondPeak: state.peak === 'second', combine: state.combine === 'yes' && state.asset === 'btc',
+  const lines = cycleLines(days, CYCLES, {
+    length: state.length, secondPeak: state.peak === 'second', combine: state.combine === 'yes',
   });
   legend.replaceChildren();
   rows = lines.map((line) => {
@@ -92,44 +90,27 @@ function draw() {
   showDay(lastDay());
 }
 
-async function load() {
-  const asset = state.asset;
-  const candles = await fetchCandles(asset, '1D');
-  if (asset !== state.asset) return; // a newer click won
-  days = candles;
-  title.textContent = `ROI from last cycle bottom: ${formatRoi(currentRoi(days, CYCLES[asset]))}`;
-  // The 2021 peak buttons are named after this asset's months (BTC topped in April, ETH in May).
-  const twice = CYCLES[asset].find((c) => c.secondPeak)!;
-  peakButtons.forEach((b, i) => (b.textContent = month(i ? twice.secondPeak! : twice.peak)));
-  pickCombine.disable(asset === 'btc' ? [] : ['no', 'yes']);
-  draw();
-}
-
 const toolbar = document.getElementById('toolbar')!;
-/** A labelled button group in the header; returns its setter and its buttons. */
+/** A labelled button group in the header. */
 function group<T extends string>(label: string, options: [T, string][], current: T, onPick: (value: T) => void, tip = '') {
   const box = toolbar.appendChild(document.createElement('div'));
   box.className = 'labelled';
   box.title = tip;
   box.append(label);
-  return [buttonGroup(box, options, current, onPick), box.querySelectorAll('button')] as const;
+  buttonGroup(box, options, current, onPick);
 }
-group('Asset', (['btc', 'eth'] as const).map((a) => [a, ASSET_NAMES[a]]), state.asset, (a) => {
-  state.asset = a;
-  load();
-});
 group('Data length', [['peak', 'To peak'], ['3m', '3 months out'], ['bottom', 'To next bottom']], state.length, (l) => {
   state.length = l;
   draw();
 }, 'How far each cycle runs: to its peak, 3 months past it, or to the next bottom (the current cycle: to today)');
-const [, peakButtons] = group('2021 peak', [['first', 'April'], ['second', 'November']], state.peak, (p) => {
+group('2021 peak', [['first', 'April'], ['second', 'November']], state.peak, (p) => {
   state.peak = p;
   draw();
 }, 'The 2021 top came twice; which one ends the 2018 cycle');
-const [pickCombine] = group('Combine 2010 + 2011 cycles', [['no', 'No'], ['yes', 'Yes']], state.combine, (c) => {
+group('Combine 2010 + 2011 cycles', [['no', 'No'], ['yes', 'Yes']], state.combine, (c) => {
   state.combine = c;
   draw();
-}, 'BTC only: one cycle from the 2010 first price to the 2013 peak');
+}, 'One cycle from the 2010 first price to the 2013 peak');
 group('ROI scale', [['log', 'Log'], ['linear', 'Linear']], state.scale, (s) => {
   state.scale = s;
   setScale();
@@ -138,4 +119,6 @@ group('ROI scale', [['log', 'Log'], ['linear', 'Linear']], state.scale, (s) => {
 
 chart.subscribeCrosshairMove((p) => showDay(p.time ?? lastDay()));
 setScale();
-await load();
+days = await fetchCandles('btc', '1D');
+title.textContent = `ROI from last cycle bottom: ${formatRoi(currentRoi(days, CYCLES))}`;
+draw();

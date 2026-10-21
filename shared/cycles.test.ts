@@ -64,8 +64,6 @@ describe('data length', () => {
 });
 
 it('cycle dates run bottom < peak < second peak < next bottom', () => {
-  for (const list of Object.values(CYCLES)) {
-    const dates = list.flatMap((c: Cycle) => [c.bottom, c.peak, ...(c.secondPeak ? [c.secondPeak] : [])]);
-    expect(dates).toEqual([...dates].sort());
-  }
+  const dates = CYCLES.flatMap((c) => [c.bottom, c.peak, ...(c.secondPeak ? [c.secondPeak] : [])]);
+  expect(dates).toEqual([...dates].sort());
 });
