@@ -6,7 +6,7 @@ import { band } from './indicators/band.ts';
 import { HALVINGS } from './indicators/halvings.ts';
 import { onBars, sma } from './indicators/sma.ts';
 import { TOOLS } from './tools/index.ts';
-import { buttonGroup, shortcut, shortcuts, toggle } from './ui/buttons.ts';
+import { buttonGroup, shortcut, shortcuts, toggle } from './core/buttons.ts';
 import { readout } from './ui/readout.ts';
 import { loadSettings, settingsPanel } from './ui/settings.ts';
 import { assetSwitcher } from './ui/switcher.ts';

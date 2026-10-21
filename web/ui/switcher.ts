@@ -1,5 +1,5 @@
 import { ASSET_NAMES, ASSETS, type Asset } from '../../shared/types.ts';
-import { buttonGroup } from './buttons.ts';
+import { buttonGroup } from '../core/buttons.ts';
 
 /** Asset buttons with their keys (1-9, then 0), in two labelled groups. */
 const BUTTONS = ASSETS.map((a, i): [Asset, string, string] => [a, ASSET_NAMES[a], String((i + 1) % 10)]);

@@ -44,3 +44,20 @@ main { flex: 1; min-height: 0; position: relative; }
 .settings dd { margin: 0; }
 /* An asset group's name before its buttons (Markets, Macro). */
 .labelled { display: flex; align-items: center; gap: 6px; color: #787b86; font-size: 12px; }
+/* Header links between the pages. */
+nav.pages { flex: none; gap: 6px; color: #787b86; }
+.pages a { color: #b2b5be; text-decoration: none; }
+.pages a[href]:hover { color: #fff; }
+.pages a.on { color: #fff; }
+/* Cycles page: legend rows (click to hide/show a cycle) with each cycle's ROI and date on the hovered day. */
+#readout > b { font-size: 15px; font-weight: 600; }
+#readout > div { color: #9598a1; margin: 6px 0 2px; }
+#readout table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#readout tr { pointer-events: auto; cursor: pointer; }
+#readout tr:hover { background: #2a2e3980; }
+#readout td { padding: 1px 12px 1px 0; }
+#readout td:nth-child(2) { text-align: right; font-weight: 500; }
+#readout td:nth-child(3) { color: #9598a1; }
+#readout tr.off { opacity: 0.4; }
+#readout tr.off td:first-child { text-decoration: line-through; }
+#readout i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin: 0 6px 3px 0; }

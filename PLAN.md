@@ -25,16 +25,16 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
     Rates default to linear scale. FRED series have no 1h/4h (those buttons disabled).
 - Pages: header links "Chart · Cycles · Seasonality". Each page is its own Vite entry (web/<page>.html + web/pages/<page>.ts),
   using core/ and shared/ only. Both read existing 1D candles from /api/candles; no new server data.
-- Cycles page (M7), like the "Bitcoin Market Cycle Bottom ROI" chart: one line per market cycle, x = days since that
+- Cycles page (M7), like the "Bitcoin Market Cycle Bottom ROI" chart, BTC only: one line per market cycle, x = days since that
   cycle's bottom, y = ROI = close / bottom close (starts at 1).
-  - Controls (button groups): Asset (BTC, ETH) · Data length: To peak / 3 months out / To next bottom (current cycle: to today)
+  - Controls (button groups): Data length: To peak / 3 months out / To next bottom (current cycle: to today)
     · 2021 peak: April / November · Combine 2010 + 2011 cycles: No / Yes (one cycle from 2010 to the 2013 peak)
     · ROI scale: Log (default) / Linear.
   - Cycle colours + names by bottom year ("2015 cycle"); click a legend name to hide/show it. Title line:
     "ROI from last cycle bottom: 5.16". Hover readout: day N, each visible cycle's ROI and date.
-  - Cycle dates live in one file (shared/cycles.ts), not auto-detected. BTC, from stored daily closes:
+  - Cycle dates live in one file (shared/cycles.ts), not auto-detected. From stored daily closes:
     bottoms 2010-07-17 (first price), 2011-11-18, 2015-01-14, 2018-12-15, 2022-11-21; peaks 2011-06-08, 2013-12-04,
-    2017-12-16, 2021-04-13 or 2021-11-08, 2025-10-06. A new bottom is added only when the owner says it is confirmed. ETH dates picked the same way in M7.
+    2017-12-16, 2021-04-13 or 2021-11-08, 2025-10-06. A new bottom is added only when the owner says it is confirmed. No ETH: the owner finds cycles only useful for BTC.
   - Lightweight Charts with a numeric (non-time) x axis; no new dependency.
 - Seasonality page (M8): table of monthly % returns, rows = years, columns = Jan..Dec + full year, cells green/red
   by size. Bottom rows: average, median, % of years up. Current, unfinished month shown faded and left out of stats.
@@ -110,5 +110,8 @@ shared/  types.ts  time.ts  cycles.ts
   the scale stays as picked. Line-only: Candles greyed out, readout shows just C. A ratio with Fed rate or M2 has no 1h/4h
   either. M2 is monthly, so its 50D/200D/band buttons are greyed out. The "in USD" list is grouped the same way.
   FRED refreshes look back a year, as M2 gets revised.
-- [ ] M7 Cycles page: BTC + ETH cycle-bottom ROI chart with the controls above. Tests: ROI maths, data-length cut-offs.
+- [x] M7 Cycles page: BTC cycle-bottom ROI chart with the controls above. Tests: ROI maths, data-length cut-offs.
+  Header links "Chart · Cycles" (Seasonality joins in M8). Opens on To next bottom; 3 months out = 3 calendar months
+  after the peak. With the mouse off the chart the readout shows the newest shown cycle's last day (today, or its peak), to compare the others with it.
+  Options and hidden cycles live in the address bar. ui/buttons.ts moved to core/ so both pages can use it.
 - [ ] M8 Seasonality page: monthly returns table with election- and halving-cycle filters. Tests: monthly returns, filters, stats rows.
