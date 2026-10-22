@@ -23,7 +23,7 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
   - Switcher groups them: Markets (BTC, ETH, Gold, Silver, S&P 500, Nasdaq) and Macro (DXY, 10Y, Fed rate, M2). Keys 1-9, 0.
   - Fed rate, 10Y and M2 have one value per day/month, not OHLC: stored as o=h=l=c, always drawn as a line.
     Rates default to linear scale. FRED series have no 1h/4h (those buttons disabled).
-- Pages: header links "Chart · Cycles · Seasonality". Each page is its own Vite entry (web/<page>.html + web/pages/<page>.ts),
+- Pages: header links "Chart · Cycles · Seasonality · DCA". Each page is its own Vite entry (web/<page>.html + web/pages/<page>.ts),
   using core/ and shared/ only. Both read existing 1D candles from /api/candles; no new server data.
 - Cycles page (M7), like the "Bitcoin Market Cycle Bottom ROI" chart, BTC only: one line per market cycle, x = days since that
   cycle's bottom, y = ROI = close / bottom close (starts at 1).
@@ -42,6 +42,13 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
     - US election cycle: All / Post-election (2025, 2021…) / Midterm (2026, 2022…) / Pre-election (2027, 2023…) / Election (2028, 2024…).
     - BTC halving cycle: All / Halving year (2012, 2016, 2020, 2024, 2028) / +1 / +2 / +3.
   - Monthly return = this month's close / last month's close - 1, from monthly candles built from 1D (M2 aggregation).
+    Rates (10Y, Fed rate) instead show the change in percentage points (5.25% -> 5.5% = +0.25).
+- DCA page (M9): buying the same dollar amount every week, which weekday is best (the owner heard "Monday").
+  - Markets only (BTC, ETH, Gold, Silver, S&P 500, Nasdaq) · Years from/to (opens on the last 10) · Buy at: day's close / open.
+  - Per weekday: how much more of the asset its buys got than the same money spread evenly over the trading week
+    around each buy (3 days either side; 2 trading days for markets closed at weekends), a bar for it, and how many
+    years it was the best day. Under it the same per year, colour-coded. Headline: best and worst day, what $100 a
+    week put in and is worth, and roughly what the best day instead of the worst is worth in dollars.
 
 ## Data
 | Asset | Daily | Hourly |
@@ -76,8 +83,8 @@ TypeScript everywhere, Node 22+. Hono server serves API and built page (one proc
 
 ```
 server/  sources/{yahoo,bitstamp,dukascopy,silver,stooq,fred}.ts  db.ts  updater.ts  routes.ts
-web/     core/{chart,store,api}.ts  indicators/  tools/  ui/  pages/{cycles,seasonality}.ts  {index,cycles,seasonality}.html
-shared/  types.ts  time.ts  cycles.ts
+web/     core/{chart,store,api}.ts  indicators/  tools/  ui/  pages/{cycles,seasonality,dca}.ts  {index,cycles,seasonality,dca}.html
+shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
 ```
 
 ## Rules (put in CLAUDE.md)
@@ -114,4 +121,19 @@ shared/  types.ts  time.ts  cycles.ts
   Header links "Chart · Cycles" (Seasonality joins in M8). Opens on To next bottom; 3 months out = 3 calendar months
   after the peak. With the mouse off the chart the readout shows the newest shown cycle's last day (today, or its peak), to compare the others with it.
   Options and hidden cycles live in the address bar. ui/buttons.ts moved to core/ so both pages can use it.
-- [ ] M8 Seasonality page: monthly returns table with election- and halving-cycle filters. Tests: monthly returns, filters, stats rows.
+- [x] M8 Seasonality page: monthly returns table with election- and halving-cycle filters. Tests: monthly returns, filters, stats rows.
+  Newest year on top; the month names and the three stats rows stay in view while the years scroll. Full year = the
+  year's months compounded (its last close over last December's). Faded and left out of the stats: the running month,
+  the running year, and a first year the data starts partway through (BTC 2010 = Aug-Dec). Colour is full strength from
+  the 75th percentile change size of the shown table (full-year column scaled on its own), so BTC and S&P are both readable.
+  Elections and halvings both fall in years divisible by 4, so the two filter rows pick the same years: Midterm lights +2.
+  Picking the first / last year in the lists means "from the start" / "up to the latest". Asset keys 1-9, 0 work here too;
+  options live in the address bar. The asset buttons moved to core/ so the Chart and Seasonality pages share them.
+  Later: rates (10Y, Fed rate) in percentage points, the full year added up.
+- [x] M9 DCA page: weekly buys on each weekday compared. Tests: buys, holidays, open/close, the comparison.
+  Why "against the week around it" and not each weekday's own total: totals mostly measure where the range starts.
+  2017 began on a Sunday, so only Sunday got a buy that first week, at ~$1,000, worth ten later buys: +1% for Sunday.
+  Counting whole Monday-Sunday weeks instead hands Monday a head start in a rising market (BTC gained ~0.1% a day).
+  Against the surrounding days neither matters, and BTC's Sunday close and Monday open (the same moment) agree.
+  Bars and colours have one fixed scale (full at 0.5%) so gold's tiny differences look tiny. Colour-coded cells
+  (core/heat.ts) and the Years lists (core/buttons.ts) are shared with Seasonality.

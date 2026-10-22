@@ -23,6 +23,17 @@ export function openDb(path = 'data/chartbook.db') {
   const drawingsOf = db.prepare('SELECT json FROM drawings WHERE asset = ? ORDER BY rowid');
   const clearDrawings = db.prepare('DELETE FROM drawings WHERE asset = ?');
   const insertDrawing = db.prepare('INSERT INTO drawings VALUES (?, ?, ?)');
+  /** Runs `fn` as one write. If it fails part-way, nothing of it is kept and the next write can still start. */
+  const write = (fn: () => void) => {
+    db.exec('BEGIN');
+    try {
+      fn();
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  };
 
   return {
     /**
@@ -31,19 +42,19 @@ export function openDb(path = 'data/chartbook.db') {
      */
     save(asset: Asset, interval: Interval, candles: Candle[], from = candles[0]?.time) {
       if (!candles.length) return;
-      db.exec('BEGIN');
-      deleteFrom.run(asset, interval, from);
-      for (const k of candles) insert.run(asset, interval, k.time, k.open, k.high, k.low, k.close);
-      db.exec('COMMIT');
+      write(() => {
+        deleteFrom.run(asset, interval, from);
+        for (const k of candles) insert.run(asset, interval, k.time, k.open, k.high, k.low, k.close);
+      });
     },
     candles: (asset: Asset, interval: Interval) => select.all(asset, interval) as unknown as Candle[],
     drawings: (ticker: Ticker) => drawingsOf.all(ticker).map((r) => JSON.parse(r.json as string) as Drawing),
     /** Replaces all of a chart's drawings (an asset's, or a ratio's); the page always sends its full list, oldest first. */
     saveDrawings(ticker: Ticker, drawings: Drawing[]) {
-      db.exec('BEGIN');
-      clearDrawings.run(ticker);
-      for (const d of drawings) insertDrawing.run(d.id, ticker, JSON.stringify(d));
-      db.exec('COMMIT');
+      write(() => {
+        clearDrawings.run(ticker);
+        for (const d of drawings) insertDrawing.run(d.id, ticker, JSON.stringify(d));
+      });
     },
     lastTime: (asset: Asset, interval: Interval) => (last.get(asset, interval) as { t: number | null }).t,
     /** Which DATA_VERSION (updater.ts) the stored history was downloaded with; SQLite's spare user_version slot. */

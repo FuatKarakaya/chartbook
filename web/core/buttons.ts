@@ -1,3 +1,5 @@
+import { ASSET_GROUPS, ASSET_NAMES, ASSETS, type Asset } from '../../shared/types.ts';
+
 /** Keyboard shortcuts, in the order made, for the list in Settings. */
 export const shortcuts: { key: string; label: string; run: () => void }[] = [];
 
@@ -67,4 +69,53 @@ export function toggle(parent: HTMLElement, label: string, on: boolean, onChange
   b.classList.toggle('on', on);
   b.onclick = () => onChange(b.classList.toggle('on'));
   return b;
+}
+
+/** The asset buttons with their keys (1-9, then 0), in labelled groups. Returns a setter for showing the pick. */
+export function assetButtons(parent: HTMLElement, asset: Asset, onPick: (asset: Asset) => void, groups = ASSET_GROUPS) {
+  const pickers = groups.map(([label, assets]) => {
+    const box = parent.appendChild(document.createElement('div'));
+    box.className = 'labelled';
+    box.append(label);
+    const options = assets.map((a): [Asset, string, string] => [a, ASSET_NAMES[a], String((ASSETS.indexOf(a) + 1) % 10)]);
+    return buttonGroup(box, options, asset, (a) => {
+      show(a);
+      onPick(a);
+    });
+  });
+  const show = (picked: Asset) => pickers.forEach((p) => p(picked));
+  return show;
+}
+
+/**
+ * "Years [from] to [to]" lists, writing the pick into `picked`. Picking the first year there is means from the start,
+ * and the last up to the latest, so the next new year shows up by itself: those are kept as null.
+ * Returns `show(years)`, which fills the lists with the years there are (oldest first) and returns the range picked.
+ */
+export function yearRange(parent: HTMLElement, picked: { from: number | null; to: number | null }, onPick: () => void) {
+  const box = parent.appendChild(document.createElement('div'));
+  box.className = 'labelled';
+  const fromList = document.createElement('select');
+  const toList = document.createElement('select');
+  box.append('Years', fromList, 'to', toList);
+  fromList.onchange = () => {
+    picked.from = fromList.selectedIndex ? Number(fromList.value) : null;
+    fromList.blur(); // so the number keys go back to the asset buttons
+    onPick();
+  };
+  toList.onchange = () => {
+    picked.to = toList.selectedIndex < toList.length - 1 ? Number(toList.value) : null;
+    toList.blur();
+    onPick();
+  };
+  return (years: number[]) => {
+    const clamp = (y: number) => Math.min(years.at(-1)!, Math.max(years[0], y));
+    const from = clamp(picked.from ?? years[0]);
+    const to = clamp(picked.to ?? years.at(-1)!);
+    fromList.innerHTML = years.map((y) => `<option${y > to ? ' disabled' : ''}>${y}</option>`).join('');
+    toList.innerHTML = years.map((y) => `<option${y < from ? ' disabled' : ''}>${y}</option>`).join('');
+    fromList.value = String(from);
+    toList.value = String(to);
+    return { from, to };
+  };
 }

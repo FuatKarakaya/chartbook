@@ -6,7 +6,10 @@ const day = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
 export async function fetchFred(id: string, from: number): Promise<Candle[]> {
   const res = await fetch(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}&cosd=${day(from)}`);
   if (!res.ok) throw new Error(`FRED HTTP ${res.status}`);
-  return parseFred(await res.text());
+  const csv = await res.text();
+  // During site maintenance FRED answers "OK" with a web page instead of the data.
+  if (!csv.startsWith('observation_date')) throw new Error('FRED sent a web page, not data (site maintenance?)');
+  return parseFred(csv);
 }
 
 /**
