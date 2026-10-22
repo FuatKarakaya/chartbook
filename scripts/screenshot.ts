@@ -8,7 +8,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1400, height: 800 }, locale: 'en-US' });
 page.on('pageerror', (err) => console.error('page error:', err.message));
 await page.goto(url);
-await page.waitForFunction(() => document.querySelector('#readout, #table')?.textContent);
+await page.waitForFunction(() => document.querySelector('#readout, .heat')?.textContent);
 await page.waitForTimeout(500);
 await page.screenshot({ path: out });
 await browser.close();

@@ -1,7 +1,7 @@
 import { bucket } from './time.ts';
 import type { Candle } from './types.ts';
 
-/** One table cell: a month's or a year's change (0.05 = +5%). */
+/** One table cell: a month's or a year's change (0.05 = +5%; for a rate, in percentage points: 0.25 = +0.25). */
 export interface Cell {
   change: number;
   /** Shown faded and left out of the stats: the month or year isn't over yet, or the data starts partway through it. */
@@ -11,26 +11,30 @@ export interface YearRow {
   year: number;
   /** Jan..Dec; null where there is no month, or none before it to compare with (the very first one). */
   months: (Cell | null)[];
-  /** The year's months compounded: its last close over the close before its first month. */
+  /** The year's months added up: its last close against the close before its first month. */
   full: Cell;
 }
 
-/** Monthly changes (this month's close / last month's close - 1) from monthly candles, newest year first. */
-export function monthlyReturns(months: Candle[], now: number): YearRow[] {
+/**
+ * Monthly changes from monthly candles, newest year first: this month's close / last month's close - 1, or for a
+ * `rate` (a yield, in %) the difference, so 5.25% -> 5.5% is +0.25 percentage points rather than +4.8%.
+ */
+export function monthlyReturns(months: Candle[], now: number, rate = false): YearRow[] {
   const running = bucket['1M'](now);
   const years = new Map<number, (Cell | null)[]>();
   for (let i = 1; i < months.length; i++) {
     const d = new Date(months[i].time * 1000);
     if (!years.has(d.getUTCFullYear())) years.set(d.getUTCFullYear(), Array(12).fill(null));
     years.get(d.getUTCFullYear())![d.getUTCMonth()] = {
-      change: months[i].close / months[i - 1].close - 1, partial: months[i].time === running,
+      change: rate ? months[i].close - months[i - 1].close : months[i].close / months[i - 1].close - 1,
+      partial: months[i].time === running,
     };
   }
   return [...years].reverse().map(([year, cells]) => {
     const shown = cells.filter((c) => c !== null);
     return {
       year, months: cells, full: {
-        change: shown.reduce((p, c) => p * (1 + c.change), 1) - 1,
+        change: rate ? shown.reduce((s, c) => s + c.change, 0) : shown.reduce((p, c) => p * (1 + c.change), 1) - 1,
         partial: shown.length < 12 || shown.some((c) => c.partial),
       },
     };

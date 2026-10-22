@@ -1,8 +1,10 @@
-// Seasonality page: each month's % change, a row per year, with the average, median and % of years up under it.
+// Seasonality page: each month's % change (a rate's: in percentage points), a row per year, with the average, median
+// and % of years up under it.
 import { monthlyReturns, pickYears, stats, type Cell, type Phase, type Stats, type YearRow } from '../../shared/seasonality.ts';
-import { ASSET_NAMES, type Asset } from '../../shared/types.ts';
+import { ASSET_NAMES, RATES, type Asset } from '../../shared/types.ts';
 import { fetchCandles } from '../core/api.ts';
-import { assetButtons, buttonGroup } from '../core/buttons.ts';
+import { assetButtons, buttonGroup, yearRange } from '../core/buttons.ts';
+import { heatCell, top, withSign } from '../core/heat.ts';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** The years of the 4-year cycle (see Phase), for the title line. */
@@ -24,19 +26,10 @@ const save = () => history.replaceState(null, '', `?${new URLSearchParams({
   cycle: state.cycle,
 })}`);
 
-const pct = (x: number) => `${x > 0 ? '+' : ''}${(x * 100).toFixed(Math.abs(x) < 1 ? 1 : 0)}%`;
-/** Where the colour reaches full strength: the 75th percentile change size, so a few wild ones don't wash out the rest. */
-function top(cells: (Cell | null)[]) {
-  const sizes = cells.filter((c) => c !== null).map((c) => Math.abs(c.change)).sort((a, b) => a - b);
-  return sizes[Math.floor(sizes.length * 0.75)] ?? 1;
-}
-/** Green up, red down, stronger the bigger `x`, full strength from `top` on. */
-const shade = (x: number, top: number) => x === 0 ? 'transparent'
-  : `rgb(${x > 0 ? '38 166 154' : '239 83 80'} / ${(0.12 + 0.63 * Math.min(1, Math.abs(x) / top)).toFixed(2)})`;
-const td = (x: number, top: number, text = pct(x), attrs = '') => `<td style="background:${shade(x, top)}"${attrs}>${text}</td>`;
-/** A year's month or full year; faded when partial. */
-const cell = (c: Cell | null, top: number, partialTip: string) => c === null ? '<td></td>'
-  : td(c.change, top, pct(c.change), c.partial ? ` class="partial" title="${partialTip}"` : '');
+const pct = (x: number) => `${withSign(Math.abs(x * 100).toFixed(Math.abs(x) < 1 ? 1 : 0), x)}%`;
+/** A rate's change, in percentage points. */
+const points = (x: number) => withSign(Math.abs(x).toFixed(2), x);
+const changes = (cells: (Cell | null)[]) => cells.filter((c) => c !== null).map((c) => c.change);
 
 const title = document.getElementById('title')!;
 const table = document.getElementById('table')!;
@@ -46,28 +39,24 @@ let all: YearRow[] = [];
 /** Rebuilds the year lists, title and table from the loaded months and the picked options. */
 function draw() {
   save();
+  const { from, to } = showYears(all.map((r) => r.year).reverse());
   if (!all.length) { // its source was down on the very first download
     title.textContent = `No ${ASSET_NAMES[state.asset]} prices downloaded yet`;
-    [table, fromList, toList].forEach((el) => el.replaceChildren());
+    table.replaceChildren();
     return;
   }
-  const first = all.at(-1)!.year;
-  const last = all[0].year;
-  const clamp = (y: number) => Math.min(last, Math.max(first, y));
-  const from = clamp(state.from ?? first);
-  const to = clamp(state.to ?? last);
-  const years = all.map((r) => r.year).reverse();
-  fromList.innerHTML = years.map((y) => `<option${y > to ? ' disabled' : ''}>${y}</option>`).join('');
-  toList.innerHTML = years.map((y) => `<option${y < from ? ' disabled' : ''}>${y}</option>`).join('');
-  fromList.value = String(from);
-  toList.value = String(to);
+  const rate = RATES.includes(state.asset);
+  const format = rate ? points : pct;
+  /** A year's month or full year; faded when partial. */
+  const cell = (c: Cell | null, top: number, partialTip: string) => c === null ? '<td></td>'
+    : heatCell(c.change, top, format(c.change), c.partial ? ` class="partial" title="${partialTip}"` : '');
 
   const phase = state.cycle === 'all' ? null : Number(state.cycle) as Phase;
   const rows = pickYears(all, { from, to, phase });
-  const monthTop = top(rows.flatMap((r) => r.months));
-  const yearTop = top(rows.map((r) => r.full));
-  title.innerHTML = `<b>${ASSET_NAMES[state.asset]} monthly returns</b> ${from}–${to}${
-    phase === null ? '' : `, ${PHASES[phase]} only`} (${rows.length} years) ·
+  const monthTop = top(changes(rows.flatMap((r) => r.months)));
+  const yearTop = top(changes(rows.map((r) => r.full)));
+  title.innerHTML = `<b>${ASSET_NAMES[state.asset]} ${rate ? 'monthly change, in percentage points' : 'monthly returns'}</b>
+    ${from}–${to}${phase === null ? '' : `, ${PHASES[phase]} only`} (${rows.length} years) ·
     faded = not over yet, or only partly in the data; left out of the bottom rows`;
 
   const body = rows.map((r) => `<tr><th>${r.year}</th>${
@@ -78,17 +67,18 @@ function draw() {
     `<tr title="${tip}"><th>${label}</th>${columns.map((s, m) => s ? show(s, m < 12 ? monthTop : yearTop) : '<td></td>').join('')}</tr>`;
   table.innerHTML = `<thead><tr><th>Year</th>${MONTHS.map((m) => `<th>${m}</th>`).join('')}<th>Full year</th></tr></thead>
     <tbody>${body.join('')}</tbody><tfoot>${
-    statRow('Average', 'Average of the years shown (faded cells left out)', (s, t) => td(s.average, t))}${
-    statRow('Median', 'The middle year: half did better, half worse (faded cells left out)', (s, t) => td(s.median, t))}${
+    statRow('Average', 'Average of the years shown (faded cells left out)', (s, t) => heatCell(s.average, t, format(s.average)))}${
+    statRow('Median', 'The middle year: half did better, half worse (faded cells left out)', (s, t) =>
+      heatCell(s.median, t, format(s.median)))}${
     statRow('% years up', 'Share of the years shown that went up (faded cells left out)', (s) =>
-      td(s.up - 0.5, 0.5, `${Math.round(s.up * 100)}%`, ` title="${Math.round(s.up * s.years)} of ${s.years} years up"`))}</tfoot>`;
+      heatCell(s.up - 0.5, 0.5, `${Math.round(s.up * 100)}%`, ` title="${Math.round(s.up * s.years)} of ${s.years} years up"`))}</tfoot>`;
 }
 
 async function load() {
   const asset = state.asset;
   const months = await fetchCandles(asset, '1M');
   if (asset !== state.asset) return; // a newer click won
-  all = monthlyReturns(months, Date.now() / 1000);
+  all = monthlyReturns(months, Date.now() / 1000, RATES.includes(asset));
   draw();
 }
 
@@ -97,23 +87,7 @@ assetButtons(toolbar, state.asset, (a) => {
   state.asset = a;
   load();
 });
-
-// Picking the first year means from the start, and the last up to the latest, so the next new year shows up by itself.
-const yearBox = toolbar.appendChild(document.createElement('div'));
-yearBox.className = 'labelled';
-const fromList = document.createElement('select');
-const toList = document.createElement('select');
-yearBox.append('Years', fromList, 'to', toList);
-fromList.onchange = () => {
-  state.from = fromList.selectedIndex ? Number(fromList.value) : null;
-  fromList.blur(); // so the number keys go back to the asset buttons
-  draw();
-};
-toList.onchange = () => {
-  state.to = toList.selectedIndex < toList.length - 1 ? Number(toList.value) : null;
-  toList.blur();
-  draw();
-};
+const showYears = yearRange(toolbar, state, draw);
 
 /** A cycle filter row. Both rows pick the same years, so each lights up its match in the other. */
 function cycleRow(label: string, options: [CycleYear, string][], tip: string) {

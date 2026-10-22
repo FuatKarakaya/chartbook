@@ -47,6 +47,14 @@ describe('monthly returns', () => {
     expect(y2021.full.partial).toBe(true);
   });
 
+  it('of a rate are differences in percentage points, added up for the full year', () => {
+    const month = (y: number, m: number, close: number) => ({ time: Date.UTC(y, m, 1) / 1000, open: close, high: close, low: close, close });
+    const bars = [month(2023, 11, 5.5), month(2024, 0, 5.25), month(2024, 1, 5), month(2024, 2, 5.75)];
+    const [y2024] = monthlyReturns(bars, Date.UTC(2025, 0, 1) / 1000, true);
+    expect(y2024.months.slice(0, 4).map((c) => c?.change)).toEqual([-0.25, -0.25, 0.75, undefined]);
+    expect(y2024.full).toEqual({ change: 0.25, partial: true });
+  });
+
   it('a month that is over is not partial, even when it is the last one', () => {
     const [last] = monthlyReturns(months(), Date.UTC(2021, 3, 1) / 1000);
     expect(last.months[2]!.partial).toBe(false);

@@ -1,4 +1,4 @@
-import { DAILY_ONLY, LINE_ONLY, tickerName, type Asset, type Candle, type Interval, type Ticker } from '../shared/types.ts';
+import { DAILY_ONLY, LINE_ONLY, RATES, tickerName, type Asset, type Candle, type Interval, type Ticker } from '../shared/types.ts';
 import { fetchCandles, fetchDrawings, fetchStatus, saveDrawings } from './core/api.ts';
 import { createMainChart, type Line, type Style } from './core/chart.ts';
 import { drawingEditor } from './core/drawings.ts';
@@ -12,8 +12,6 @@ import { loadSettings, settingsPanel } from './ui/settings.ts';
 import { assetSwitcher } from './ui/switcher.ts';
 
 const INTERVALS: Interval[] = ['1h', '4h', '1D', '1W', '1M'];
-/** Open on a linear scale. */
-const RATES: Asset[] = ['tnx', 'fed'];
 /** Keys the drawing editor handles itself, for the shortcut list. */
 const EDITOR_KEYS = [
   { key: 'Shift+click', label: 'Ruler' }, { key: 'Esc', label: 'Stop drawing, unselect' },

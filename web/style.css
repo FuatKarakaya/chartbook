@@ -61,19 +61,31 @@ nav.pages { flex: none; gap: 6px; color: #787b86; }
 #readout tr.off { opacity: 0.4; }
 #readout tr.off td:first-child { text-decoration: line-through; }
 #readout i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin: 0 6px 3px 0; }
-/* Seasonality page: the table scrolls under its header row and the stats rows at the bottom stay in view. */
-#seasonality { overflow: auto; padding: 0 12px; }
-#title { margin: 10px 0 8px; color: #9598a1; font-size: 13px; }
-#title b { color: #d1d4dc; font-size: 15px; font-weight: 600; margin-right: 8px; }
-#table { border-spacing: 0; font-variant-numeric: tabular-nums; font-size: 13px; }
-#table th, #table td { border: 1px solid #131722; padding: 4px 8px; min-width: 52px; text-align: right; white-space: nowrap; }
-#table th { color: #9598a1; font-weight: 500; }
-#table tbody th, #table tfoot th { text-align: left; min-width: 0; }
+/* Table pages (Seasonality, DCA): the page scrolls under each table's header row, and a table's bottom rows stay in view. */
+.page { overflow: auto; padding: 0 12px; }
+.title { margin: 10px 0 8px; color: #9598a1; font-size: 13px; }
+.title b { color: #d1d4dc; font-size: 15px; font-weight: 600; margin-right: 8px; }
+.heat { border-spacing: 0; font-variant-numeric: tabular-nums; font-size: 13px; }
+.heat th, .heat td { border: 1px solid #131722; padding: 4px 8px; min-width: 52px; text-align: right; white-space: nowrap; }
+.heat th { color: #9598a1; font-weight: 500; }
+.heat tbody th, .heat tfoot th { text-align: left; min-width: 0; }
+.heat thead, .heat tfoot { position: sticky; z-index: 1; background: #131722; }
+.heat thead { top: 0; }
+.heat tfoot { bottom: 0; }
+.heat tfoot tr:first-child > * { border-top-width: 8px; }
+.heat tfoot th { color: #d1d4dc; }
+.heat tbody tr:hover { background: #2a2e39; }
+.heat td.partial { opacity: 0.4; }
+/* Seasonality: the full-year column set apart. */
 #table tr > :last-child { border-left-width: 8px; font-weight: 500; }
-#table thead, #table tfoot { position: sticky; z-index: 1; background: #131722; }
-#table thead { top: 0; }
-#table tfoot { bottom: 0; }
-#table tfoot tr:first-child > * { border-top-width: 8px; }
-#table tfoot th { color: #d1d4dc; }
-#table tbody tr:hover { background: #2a2e39; }
-#table td.partial { opacity: 0.4; }
+/* DCA: the headline, the best day's numbers in bold, and bars from a middle line (more of the asset: right, green). */
+#headline { margin: 0 0 10px; font-size: 14px; }
+#headline .up { color: #26a69a; }
+#headline .down { color: #ef5350; }
+.heat .best, .heat .best > th { font-weight: 700; color: #fff; }
+.heat td.bar { text-align: left; }
+.heat .bar span { display: inline-block; position: relative; width: 160px; height: 12px; margin-right: 10px; vertical-align: -1px; }
+.heat .bar span::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px solid #5d606b; }
+.heat .bar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+#by-year-title { margin-top: 24px; }
+#by-year { margin-bottom: 12px; }
