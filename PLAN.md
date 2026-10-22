@@ -49,6 +49,19 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
     around each buy (3 days either side; 2 trading days for markets closed at weekends), a bar for it, and how many
     years it was the best day. Under it the same per year, colour-coded. Headline: best and worst day, what $100 a
     week put in and is worth, and roughly what the best day instead of the worst is worth in dollars.
+- Pattern tool (M10), on the Chart page: select a stretch with two clicks (key S); the past stretches whose ups and
+  downs look most like it ("fits") are found in the same chart's history, on its timeframe. Built for BTC, Gold, Silver
+  (works on any chart). A bar above the chart steps through fits 1-10: each is shaded where it happened, with what came
+  after it (as long again), and can be overlaid on the stretch like a fractal, or kept as one.
+  - Matching (shared/patterns.ts; we may change it): each stretch cut into 12 equal pieces, compared on the pieces'
+    moves, not prices, so direction comes first. Each move counts against its own stretch's typical move (squashed:
+    a usual move counts mostly by its direction, one huge jump can't outweigh the rest, a wiggle counts little), then
+    the cosine of the two lists. Blended with how alike the overall size of the moves is by a slider (direction 50-100%,
+    starting at 70%). Look-alikes may have taken ½× to 2× as long (13 speeds, switch on by default). Fits never overlap
+    each other or the pattern.
+  - Looked at: plain least squares on prices (size and level dominate), z-normalised distance (drops size entirely),
+    DTW and derivative DTW (bends time unevenly, slower), SAX symbols (loses direction inside a segment), perceptually
+    important points (turning points: used for the "↗+30% ↘-12%" swings shown, not the score).
 
 ## Data
 | Asset | Daily | Hourly |
@@ -137,3 +150,8 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
   Against the surrounding days neither matters, and BTC's Sunday close and Monday open (the same moment) agree.
   Bars and colours have one fixed scale (full at 0.5%) so gold's tiny differences look tiny. Colour-coded cells
   (core/heat.ts) and the Years lists (core/buttons.ts) are shared with Seasonality.
+- [x] M10 Pattern tool: pick a stretch, step through look-alikes, overlay or keep one as a fractal. Tests: exact,
+  bigger, upside-down and half-speed copies planted in a random walk, the slider, no overlaps, swings.
+  The overlay ends on the stretch's last close, so what came after a fit starts from today's price. The fractal maths
+  (project, stretch) moved to shared/ so both tools use it; tools can now add a drawing and scroll the chart (Edit).
+  Speed: ~20 ms on daily charts, ~200 ms on hourly (long patterns try starts a fiftieth of their length apart).

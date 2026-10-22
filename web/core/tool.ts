@@ -25,6 +25,10 @@ export interface Edit<D extends Drawing> {
   changed(done: boolean): void;
   /** Switches the chart to another asset and adds `make(its bars)` there, as a new drawing. */
   copyTo(asset: Asset, make: (bars: Candle[]) => D): void;
+  /** Adds a new drawing of any tool to this chart, selected (a pattern's fit kept as a fractal). */
+  add(d: Omit<Drawing, 'id'>): void;
+  /** Scrolls the chart to show these times. */
+  reveal(times: number[]): void;
 }
 
 /**
@@ -63,6 +67,32 @@ export interface Tool<D extends Drawing = PointDrawing> {
 /** A drawing's handles as time + price: its points unless its tool says otherwise. */
 export const handlesOf = (tool: Tool<Drawing>, d: Drawing, view: View) =>
   tool.handles?.(d, view) ?? (d as PointDrawing).points;
+
+/**
+ * Ghost candles (a fractal's copy, a pattern's overlay) in `color` at `opacity`. Returns the top, left and right of
+ * what is on screen, for a label (left > right: none is).
+ */
+export function ghostCandles(ctx: CanvasRenderingContext2D, copy: Candle[], view: View, color: string, opacity: number) {
+  const xs = copy.map((c) => view.x(c.time));
+  const w = copy.length > 1 ? Math.max(1, (0.6 * (xs[xs.length - 1] - xs[0])) / (copy.length - 1)) : 5;
+  ctx.fillStyle = color;
+  ctx.globalAlpha = opacity;
+  let top = Infinity;
+  let left = Infinity;
+  let right = -Infinity;
+  copy.forEach((c, i) => {
+    const x = xs[i];
+    if (x < -w || x > view.width + w) return;
+    const [open, high, low, close] = [c.open, c.high, c.low, c.close].map(view.y);
+    ctx.fillRect(x - 0.5, high, 1, low - high);
+    ctx.fillRect(x - w / 2, Math.min(open, close), w, Math.max(1, Math.abs(close - open)));
+    top = Math.min(top, high);
+    left = Math.min(left, x);
+    right = Math.max(right, x);
+  });
+  ctx.globalAlpha = 1;
+  return { top, left, right };
+}
 
 /** How close (CSS pixels) the mouse must be to grab a line. */
 export const GRAB = 6;

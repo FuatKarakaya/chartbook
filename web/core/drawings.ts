@@ -63,6 +63,8 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
   const edit: Edit<Drawing> = {
     changed: (done) => (done ? commit() : layer.redraw()),
     copyTo: (a, copy) => void app.showAsset(a).then(() => add({ ...copy(view().bars), id: crypto.randomUUID() }, true)),
+    add: (d) => add({ ...d, id: crypto.randomUUID() }),
+    reveal: (times) => coords.reveal(times),
   };
   function select(d: Drawing | null) {
     selected = d;
@@ -183,9 +185,10 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
       ruler = null;
       layer.redraw();
     },
-    /** The bars on screen, for placing drawings made on any timeframe. */
+    /** The bars on screen, for placing drawings made on any timeframe; the selected one's bar is rebuilt for them. */
     setBars(...args: Parameters<typeof coords.setBars>) {
       coords.setBars(...args);
+      select(selected);
       layer.redraw();
     },
     count: () => drawings.length,

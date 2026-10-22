@@ -24,6 +24,7 @@ main { flex: 1; min-height: 0; position: relative; }
 .drawing-bar {
   position: absolute; top: 32px; left: 12px; z-index: 3; display: flex; align-items: center; gap: 8px;
   padding: 4px 8px; background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; font-size: 13px;
+  flex-wrap: wrap; max-width: calc(100% - 110px);
 }
 .drawing-bar[hidden] { display: none; }
 .drawing-bar input[type=color] { width: 28px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; }

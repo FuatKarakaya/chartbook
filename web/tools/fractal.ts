@@ -1,52 +1,6 @@
-import { ASSET_NAMES, ASSETS, tickerName, type Anchor, type Candle, type Drawing, type Ticker } from '../../shared/types.ts';
-import { GRAB, label, type Px, type Tool, type View } from '../core/tool.ts';
-
-/** A ghost copy of a stretch of candles (PLAN.md's stored shape). */
-export interface Fractal extends Drawing {
-  /** An asset, or a ratio of two. */
-  sourceAsset: Ticker;
-  /** The stretch copied (UTC seconds). */
-  srcStart: number;
-  srcEnd: number;
-  /** Where the copy's first close sits. */
-  anchorTime: number;
-  anchorPrice: number;
-  /** 2 = the copy takes twice as long as the original. */
-  timeScale: number;
-  /** 0.5 = half the original's moves (half the height on a log scale). */
-  moveScale: number;
-  /** Upside down: rises become falls. */
-  flip: boolean;
-  style: { color: string; opacity: number };
-}
-
-/** The candles copied: from the one holding `from` (so 1W/1M take the week or month it falls in) to the last at `to`. */
-export function stretch(all: Candle[], from: number, to: number) {
-  return all.slice(Math.max(0, all.findLastIndex((c) => c.time <= from)), all.findLastIndex((c) => c.time <= to) + 1);
-}
-
-/**
- * The ghost candles: `src` moved so its first close sits on the anchor, every move from that close scaled
- * (price_i = anchorPrice * (c_i / c_0) ^ (moveScale * (flip ? -1 : 1))) and time stretched
- * (t_i = anchorTime + timeScale * (t_i_src - t_0_src)). Flipped, highs and lows swap.
- */
-export function project(f: Fractal, src: Candle[]): Candle[] {
-  const k = f.moveScale * (f.flip ? -1 : 1);
-  const at = (p: number) => f.anchorPrice * (p / src[0].close) ** k;
-  return src.map((c) => {
-    const [high, low] = [at(c.high), at(c.low)];
-    return {
-      time: f.anchorTime + f.timeScale * (c.time - src[0].time),
-      open: at(c.open), high: Math.max(high, low), low: Math.min(high, low), close: at(c.close),
-    };
-  });
-}
-
-/** Index of the candle whose close is furthest (in %) from the first one's: the move-size handle sits on it. */
-export function biggestMove(src: Candle[]) {
-  const size = (c: Candle) => Math.abs(Math.log(c.close / src[0].close));
-  return src.reduce((best, c, i) => (size(c) > size(src[best]) ? i : best), 0);
-}
+import { biggestMove, type Fractal, project, stretch } from '../../shared/fractal.ts';
+import { ASSET_NAMES, ASSETS, tickerName } from '../../shared/types.ts';
+import { ghostCandles, GRAB, label, type Px, type Tool, type View } from '../core/tool.ts';
 
 /**
  * The source candles on the chart's timeframe, or daily where that timeframe's history doesn't reach back
@@ -125,29 +79,13 @@ export const fractal: Tool<Fractal> = {
   draw(ctx, [a, end, size], f, view, selected) {
     const copy = ghost(f, view);
     if (!copy.length) return;
-    const xs = copy.map((c) => view.x(c.time));
-    const w = copy.length > 1 ? Math.max(1, (0.6 * (xs[xs.length - 1] - xs[0])) / (copy.length - 1)) : 5;
     ctx.fillStyle = ctx.strokeStyle = f.style.color;
     if (selected && f.sourceAsset === view.asset) {
       // Where it was copied from.
       ctx.globalAlpha = 0.12;
       ctx.fillRect(view.x(f.srcStart), 0, view.x(f.srcEnd) - view.x(f.srcStart), view.height);
     }
-    ctx.globalAlpha = f.style.opacity;
-    let top = Infinity;
-    let left = Infinity;
-    let right = -Infinity;
-    copy.forEach((c, i) => {
-      const x = xs[i];
-      if (x < -w || x > view.width + w) return;
-      const [open, high, low, close] = [c.open, c.high, c.low, c.close].map(view.y);
-      ctx.fillRect(x - 0.5, high, 1, low - high);
-      ctx.fillRect(x - w / 2, Math.min(open, close), w, Math.max(1, Math.abs(close - open)));
-      top = Math.min(top, high);
-      left = Math.min(left, x);
-      right = Math.max(right, x);
-    });
-    ctx.globalAlpha = 1;
+    const { top, left, right } = ghostCandles(ctx, copy, view, f.style.color, f.style.opacity);
     if (selected) {
       ctx.lineWidth = 1;
       dashed(ctx, a, end);
