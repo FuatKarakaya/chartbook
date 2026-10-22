@@ -5,6 +5,11 @@ export interface Px { x: number; y: number }
 export interface Size { width: number; height: number }
 
 export const COLOR = '#26c6da';
+/** A pattern's fits: their strips and overlays. */
+export const STRIP = '#ab47bc';
+
+/** A stretch of time to shade: darker from `from` to `to`, lighter on to `after`, labelled at the bottom (a fit). */
+export interface Strip { from: number; to: number; after: number; label: string }
 
 /** What a tool sees of the chart: its size, time/price -> pixels (also in the empty space on the right), and candles. */
 export interface View extends Size {
@@ -29,6 +34,8 @@ export interface Edit<D extends Drawing> {
   add(d: Omit<Drawing, 'id'>): void;
   /** Scrolls the chart to show these times. */
   reveal(times: number[]): void;
+  /** Switches the chart to another asset, scrolled to `strip` and shading it until Esc or the next switch. */
+  goTo(asset: Ticker, strip: Strip): void;
 }
 
 /**
@@ -92,6 +99,24 @@ export function ghostCandles(ctx: CanvasRenderingContext2D, copy: Candle[], view
   });
   ctx.globalAlpha = 1;
   return { top, left, right };
+}
+
+export function shadeStrip(ctx: CanvasRenderingContext2D, view: View, s: Strip) {
+  const [x0, x1, x2] = [s.from, s.to, s.after].map(view.x);
+  ctx.fillStyle = STRIP;
+  ctx.globalAlpha = 0.14;
+  ctx.fillRect(x0, 0, x1 - x0, view.height);
+  ctx.globalAlpha = 0.06;
+  ctx.fillRect(x1, 0, x2 - x1, view.height);
+  ctx.globalAlpha = 1;
+  if (x2 < 0 || x0 > view.width) return;
+  ctx.font = '12px system-ui, sans-serif';
+  label(ctx, s.label, Math.max(x0, 0) + ctx.measureText(s.label).width / 2 + 12, view.height - 30, STRIP);
+}
+
+/** A button for a drawing's settings bar. */
+export function button(text: string, onclick: () => void, title: string) {
+  return Object.assign(document.createElement('button'), { textContent: text, onclick, title });
 }
 
 /** How close (CSS pixels) the mouse must be to grab a line. */

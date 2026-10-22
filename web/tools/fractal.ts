@@ -1,6 +1,6 @@
 import { biggestMove, type Fractal, project, stretch } from '../../shared/fractal.ts';
 import { ASSET_NAMES, ASSETS, tickerName } from '../../shared/types.ts';
-import { ghostCandles, GRAB, label, type Px, type Tool, type View } from '../core/tool.ts';
+import { button, ghostCandles, GRAB, label, type Px, type Tool, type View } from '../core/tool.ts';
 
 /**
  * The source candles on the chart's timeframe, or daily where that timeframe's history doesn't reach back
@@ -28,10 +28,6 @@ function dashed(ctx: CanvasRenderingContext2D, a: Px, b: Px) {
   ctx.lineTo(b.x, b.y);
   ctx.stroke();
   ctx.setLineDash([]);
-}
-
-function button(text: string, onclick: () => void, title = '') {
-  return Object.assign(document.createElement('button'), { textContent: text, onclick, title });
 }
 
 /**
