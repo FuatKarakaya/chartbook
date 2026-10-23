@@ -12,6 +12,9 @@ nav { display: flex; flex-wrap: wrap; gap: 12px; }
 .group button:hover, .drawing-bar button:hover, nav select:hover, .settings button:hover { background: #2a2e39; }
 nav select option { background: #1e222d; }
 .group button:disabled { opacity: 0.5; cursor: default; }
+/* Icon buttons (Refresh, Save image, Settings): the name is in the tooltip. */
+.group button.icon { padding: 4px 8px; line-height: 0; }
+.icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .group button.on, .drawing-bar button.on, nav select.on { background: #2962ff; border-color: #2962ff; color: #fff; }
 main { flex: 1; min-height: 0; position: relative; }
 #chart { position: absolute; inset: 0; }

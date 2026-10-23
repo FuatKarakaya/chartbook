@@ -2,7 +2,7 @@ import { DAILY_ONLY, LINE_ONLY, RATES, tickerName, type Asset, type Candle, type
 import { fetchCandles, fetchDrawings, fetchStatus, saveDrawings } from './core/api.ts';
 import { createMainChart, type Line, type Style } from './core/chart.ts';
 import { drawingEditor } from './core/drawings.ts';
-import { band } from './indicators/band.ts';
+import { band, PER_CLOSE } from './indicators/band.ts';
 import { HALVINGS } from './indicators/halvings.ts';
 import { onBars, sma } from './indicators/sma.ts';
 import { TOOLS } from './tools/index.ts';
@@ -58,12 +58,14 @@ const lineOnly = () => LINE_ONLY.includes(state.asset);
 /** The lines over the bars, all from daily candles, so they agree on every timeframe. */
 function makeLines() {
   const weekly = band(days);
+  // On 1h/4h the daily lines glide across a day's bars instead of stepping once a day.
+  const glide = (perClose: number) => (intraday() ? { days, perClose } : undefined);
   lines = monthly() ? [] : [
     ...settings.ma.map((m, i) => ({
-      key: `ma${i + 1}`, name: `${m.length}D`, color: m.color, points: onBars(sma(days, m.length), bars),
+      key: `ma${i + 1}`, name: `${m.length}D`, color: m.color, points: onBars(sma(days, m.length), bars, glide(1 / m.length)),
     })),
-    { key: 'band', name: '20W SMA', color: settings.band, points: onBars(weekly.sma, bars) },
-    { key: 'band', name: '21W EMA', color: settings.band, points: onBars(weekly.ema, bars), band: true },
+    { key: 'band', name: '20W SMA', color: settings.band, points: onBars(weekly.sma, bars, glide(PER_CLOSE.sma)) },
+    { key: 'band', name: '21W EMA', color: settings.band, points: onBars(weekly.ema, bars, glide(PER_CLOSE.ema)), band: true },
   ];
 }
 const shownLines = () => lines.filter((l) => state.show.has(l.key));

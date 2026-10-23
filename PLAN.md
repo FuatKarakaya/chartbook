@@ -114,7 +114,7 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
 ## Milestones
 - [x] M0 Skeleton: CLAUDE.md, PLAN.md, install LWC agent skill (npx skills add https://github.com/tradingview/lightweight-charts), server + page, BTC chart from a small sample file, start.bat.
 - [x] M1 Data: sources, backfill, updater, SQLite, candles API. Done: all 4 assets load in 1h and 1D with the start dates above. (Stooq pre-2000 gold/silver not done yet.)
-- [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50D/200D (changed from 50W/200W), right-side space. Opens on the last 400 bars (all of them if fewer); MAs show as steps on 1h/4h (each bar uses its latest day).
+- [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50D/200D (changed from 50W/200W), right-side space. Opens on the last 400 bars (all of them if fewer); MAs glide on 1h/4h (a window sliding hour by hour; they used to step once a day).
 - [x] M3 Drawing tools + saving. Drawings snap to bars in time, show on every timeframe (a 1D point lands between bars on 1W), and can sit in the empty future space.
 - [x] M4 Fractal tool. The copy starts at the last candle; the chart scrolls to it and the price scale fits it. Handles: start (move),
   end (time), biggest move (size; dragging it past the start flips). A bar under the readout for the selected drawing: flip, colour,
@@ -160,3 +160,8 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
   Speed: ~20 ms on daily charts, ~200 ms on hourly (long patterns try starts a fiftieth of their length apart).
   Then "Search in" BTC / Gold / Silver (the owner's ask: selectable): another chart's candles download on first use and
   the bar refreshes when they're in (the editor rebuilds the selected drawing's bar when candles arrive).
+- [x] Polish: on 1h/4h the 50D/200D and the band glide instead of stepping once a day (onBars: over a day's bars from
+  the day before's value to the day's own, each bar's close standing in for the day's: a window sliding hour by hour,
+  no peeking). Refresh / Save image / Settings are icons (names in the tooltips). The empty space right of the last bar
+  gets dates on the time axis in purple (core/future.ts), and the date under the mouse there: the chart only labels
+  times that have a bar, so fractal and pattern projections had no dates.

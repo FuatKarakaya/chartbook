@@ -4,6 +4,8 @@ import type { Candle, Point } from '../../shared/types.ts';
 const SMA_WEEKS = 20;
 const EMA_WEEKS = 21;
 const K = 2 / (EMA_WEEKS + 1);
+/** How much a day's close moves each line, for gliding them across hourly bars (see onBars). */
+export const PER_CLOSE = { sma: 1 / SMA_WEEKS, ema: K };
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
