@@ -1,6 +1,7 @@
 import { CandlestickSeries, createChart, LineSeries, PriceScaleMode } from 'lightweight-charts';
 import type { CandlestickData, IPanePrimitive, ISeriesApi, ISeriesPrimitive, LineData, Logical, UTCTimestamp } from 'lightweight-charts';
 import type { Candle, Point } from '../../shared/types.ts';
+import { futureDates } from './future.ts';
 import { timeline } from './timeline.ts';
 
 const UP = '#26a69a';
@@ -40,6 +41,7 @@ export function createMainChart(el: HTMLElement) {
   let lines: Line[] = [];
   let marks: Mark[] = [];
   let line: ReturnType<typeof timeline>;
+  let intraday = false;
 
   // logicalToCoordinate only takes whole bars, and a daily point on the weekly chart sits between two.
   const xAt = (l: number) => {
@@ -49,6 +51,9 @@ export function createMainChart(el: HTMLElement) {
   };
   const x = (t: number) => xAt(line.toLogical(t));
   const y = (price: number) => candles.priceToCoordinate(price) ?? NaN;
+  // On both series, as one is hidden at a time (candles or line); each shows the dates while it is shown.
+  const dates = { last: () => bars.length - 1, toTime: (l: number) => line.toTime(l), x, intraday: () => intraday };
+  for (const s of [candles, close]) futureDates(chart, s, dates);
 
   /** Fills each band between its two lines, over the bars on screen. */
   function shade(ctx: CanvasRenderingContext2D) {
@@ -106,11 +111,12 @@ export function createMainChart(el: HTMLElement) {
     /** The candle series; its price scale places drawings (it converts prices even while hidden in line mode). */
     series: candles,
     /** Replaces the bars and their close line. Jumps to the latest bars, unless `keepView` (a refresh of the same chart). */
-    setData(candleList: Candle[], intraday: boolean, keepView = false) {
+    setData(candleList: Candle[], hourly: boolean, keepView = false) {
       const view = time.getVisibleLogicalRange();
       bars = candleList;
+      intraday = hourly;
       line = timeline(bars.map((b) => b.time));
-      chart.applyOptions({ timeScale: { timeVisible: intraday } });
+      chart.applyOptions({ timeScale: { timeVisible: hourly } });
       // Price steps fine enough for the lowest price (silver in BTC is 0.0007), or the price scale shows no marks.
       const precision = Math.max(2, 3 - Math.floor(Math.log10(bars.reduce((m, b) => Math.min(m, b.low), Infinity))));
       for (const s of [candles, close]) s.applyOptions({ priceFormat: { type: 'price', precision, minMove: 10 ** -precision } });

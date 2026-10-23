@@ -12,6 +12,9 @@ nav { display: flex; flex-wrap: wrap; gap: 12px; }
 .group button:hover, .drawing-bar button:hover, nav select:hover, .settings button:hover { background: #2a2e39; }
 nav select option { background: #1e222d; }
 .group button:disabled { opacity: 0.5; cursor: default; }
+/* Icon buttons (Refresh, Save image, Settings): the name is in the tooltip. */
+.group button.icon { padding: 4px 8px; line-height: 0; }
+.icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .group button.on, .drawing-bar button.on, nav select.on { background: #2962ff; border-color: #2962ff; color: #fff; }
 main { flex: 1; min-height: 0; position: relative; }
 #chart { position: absolute; inset: 0; }
@@ -24,6 +27,7 @@ main { flex: 1; min-height: 0; position: relative; }
 .drawing-bar {
   position: absolute; top: 32px; left: 12px; z-index: 3; display: flex; align-items: center; gap: 8px;
   padding: 4px 8px; background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; font-size: 13px;
+  flex-wrap: wrap; max-width: calc(100% - 110px);
 }
 .drawing-bar[hidden] { display: none; }
 .drawing-bar input[type=color] { width: 28px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; }

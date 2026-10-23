@@ -49,6 +49,22 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
     around each buy (3 days either side; 2 trading days for markets closed at weekends), a bar for it, and how many
     years it was the best day. Under it the same per year, colour-coded. Headline: best and worst day, what $100 a
     week put in and is worth, and roughly what the best day instead of the worst is worth in dollars.
+- Pattern tool (M10), on the Chart page: select a stretch with two clicks (key S); the past stretches whose ups and
+  downs look most like it ("fits") are found on its timeframe, in the history of the charts picked under "Search in":
+  this chart's (on its own to start) and/or BTC's, Gold's, Silver's. Built for BTC, Gold, Silver (works on any chart).
+  A bar above the chart steps through fits 1-10: each is shaded where it happened, with what came after it (as long
+  again), and can be overlaid on the stretch like a fractal, or kept as one. Another chart's fit: picking it shows its
+  overlay on the stretch; "Go to fit" switches to that chart, scrolled to the fit and shaded (until Esc).
+  - Matching (shared/patterns.ts; we may change it): each stretch cut into 12 equal pieces, compared on the pieces'
+    moves, not prices, so direction comes first. Each move counts against its own stretch's typical move (squashed:
+    a usual move counts mostly by its direction, one huge jump can't outweigh the rest, a wiggle counts little), then
+    the cosine of the two lists. Blended with how alike the overall size of the moves is by a slider (direction 50-100%,
+    starting at 70%). Look-alikes may have taken ½× to 2× as long (13 speeds, switch on by default), in time: gold's
+    daily bars skip weekends, so 90 BTC days are compared with ~64 gold bars. Fits never overlap each other on the same
+    chart, nor the pattern's time on any.
+  - Looked at: plain least squares on prices (size and level dominate), z-normalised distance (drops size entirely),
+    DTW and derivative DTW (bends time unevenly, slower), SAX symbols (loses direction inside a segment), perceptually
+    important points (turning points: used for the "↗+30% ↘-12%" swings shown, not the score).
 
 ## Data
 | Asset | Daily | Hourly |
@@ -98,7 +114,7 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
 ## Milestones
 - [x] M0 Skeleton: CLAUDE.md, PLAN.md, install LWC agent skill (npx skills add https://github.com/tradingview/lightweight-charts), server + page, BTC chart from a small sample file, start.bat.
 - [x] M1 Data: sources, backfill, updater, SQLite, candles API. Done: all 4 assets load in 1h and 1D with the start dates above. (Stooq pre-2000 gold/silver not done yet.)
-- [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50D/200D (changed from 50W/200W), right-side space. Opens on the last 400 bars (all of them if fewer); MAs show as steps on 1h/4h (each bar uses its latest day).
+- [x] M2 Chart core: asset switcher, 1h/4h/1D/1W/1M, log/linear, crosshair readout, 50D/200D (changed from 50W/200W), right-side space. Opens on the last 400 bars (all of them if fewer); MAs glide on 1h/4h (a window sliding hour by hour; they used to step once a day).
 - [x] M3 Drawing tools + saving. Drawings snap to bars in time, show on every timeframe (a 1D point lands between bars on 1W), and can sit in the empty future space.
 - [x] M4 Fractal tool. The copy starts at the last candle; the chart scrolls to it and the price scale fits it. Handles: start (move),
   end (time), biggest move (size; dragging it past the start flips). A bar under the readout for the selected drawing: flip, colour,
@@ -137,3 +153,15 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
   Against the surrounding days neither matters, and BTC's Sunday close and Monday open (the same moment) agree.
   Bars and colours have one fixed scale (full at 0.5%) so gold's tiny differences look tiny. Colour-coded cells
   (core/heat.ts) and the Years lists (core/buttons.ts) are shared with Seasonality.
+- [x] M10 Pattern tool: pick a stretch, step through look-alikes, overlay or keep one as a fractal. Tests: exact,
+  bigger, upside-down and half-speed copies planted in a random walk, the slider, no overlaps, swings.
+  The overlay ends on the stretch's last close, so what came after a fit starts from today's price. The fractal maths
+  (project, stretch) moved to shared/ so both tools use it; tools can now add a drawing and scroll the chart (Edit).
+  Speed: ~20 ms on daily charts, ~200 ms on hourly (long patterns try starts a fiftieth of their length apart).
+  Then "Search in" BTC / Gold / Silver (the owner's ask: selectable): another chart's candles download on first use and
+  the bar refreshes when they're in (the editor rebuilds the selected drawing's bar when candles arrive).
+- [x] Polish: on 1h/4h the 50D/200D and the band glide instead of stepping once a day (onBars: over a day's bars from
+  the day before's value to the day's own, each bar's close standing in for the day's: a window sliding hour by hour,
+  no peeking). Refresh / Save image / Settings are icons (names in the tooltips). The empty space right of the last bar
+  gets dates on the time axis in purple (core/future.ts), and the date under the mouse there: the chart only labels
+  times that have a bar, so fractal and pattern projections had no dates.
