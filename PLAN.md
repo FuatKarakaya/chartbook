@@ -165,3 +165,8 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
   no peeking). Refresh / Save image / Settings are icons (names in the tooltips). The empty space right of the last bar
   gets dates on the time axis in purple (core/future.ts), and the date under the mouse there: the chart only labels
   times that have a bar, so fractal and pattern projections had no dates.
+- [x] Polish 2: switching timeframe keeps the stretch of time on screen (core/timeline.ts carryRange): the same dates,
+  empty space past the last bar keeping its share of the screen, at least 20 bars, and on 1h/4h at most what fits
+  (the chart can't zoom out further), ending on the same latest bar. Switching asset still opens on the last 400 bars.
+  BTC, ETH, Gold, Silver buttons are logos (core/logos.ts; names in the tooltips), "chartbook" left the header, and a
+  new look: page tabs, rounded button groups, one colour set (CSS variables) shared by the pages and the charts.

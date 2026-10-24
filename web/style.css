@@ -1,32 +1,56 @@
-html, body { margin: 0; height: 100%; background: #131722; color: #d1d4dc; font: 14px system-ui, sans-serif; }
-body { display: flex; flex-direction: column; }
-header { display: flex; align-items: center; gap: 12px; padding: 6px 12px; border-bottom: 1px solid #2a2e39; }
-header em { color: #f7a600; font-style: normal; }
-nav { display: flex; flex-wrap: wrap; gap: 12px; }
-.group { display: flex; }
-.group button, .drawing-bar button, nav select, .settings button {
-  background: none; color: #b2b5be; border: 1px solid #2a2e39; padding: 4px 10px; font: inherit; cursor: pointer;
-  white-space: nowrap;
+:root {
+  --bg: #0f1219; --panel: #161a23; --raised: #212634; --border: #262c39;
+  --text: #d8dbe2; --muted: #8b91a0; --faint: #5f6573; --accent: #3d6bff; --up: #26a69a; --down: #ef5350;
 }
-.group button + button { border-left: none; }
-.group button:hover, .drawing-bar button:hover, nav select:hover, .settings button:hover { background: #2a2e39; }
-nav select option { background: #1e222d; }
-.group button:disabled { opacity: 0.5; cursor: default; }
+html, body {
+  margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 13px/1.4 Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+body { display: flex; flex-direction: column; }
+header {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 10px; padding: 8px 12px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+}
+header em { color: #f7a600; font-style: normal; }
+nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#toolbar { flex: 1 1 0; min-width: 0; }
+/* A row of buttons in one rounded box; the picked one is lit. */
+.group { display: flex; gap: 2px; padding: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.group button, .drawing-bar button, .settings button {
+  background: none; color: var(--muted); border: none; border-radius: 6px; padding: 4px 10px; font: inherit;
+  cursor: pointer; white-space: nowrap; transition: background 0.12s, color 0.12s;
+}
+.drawing-bar button, .settings button { border: 1px solid var(--border); }
+.group button:hover, .drawing-bar button:hover, .settings button:hover { background: var(--raised); color: var(--text); }
+.group button:disabled { opacity: 0.35; cursor: default; background: none; color: var(--muted); }
+.group button.on, .drawing-bar button.on { background: var(--accent); color: #fff; }
+nav select {
+  background: var(--bg); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px;
+  font: inherit; cursor: pointer;
+}
+nav select:hover { color: var(--text); border-color: var(--faint); }
+nav select.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+nav select option, nav select optgroup { background: var(--panel); color: var(--text); }
 /* Icon buttons (Refresh, Save image, Settings): the name is in the tooltip. */
-.group button.icon { padding: 4px 8px; line-height: 0; }
-.icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.group button.on, .drawing-bar button.on, nav select.on { background: #2962ff; border-color: #2962ff; color: #fff; }
+.group button.icon { padding: 4px 7px; line-height: 0; }
+.icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* Asset logos (BTC, ETH, Gold, Silver): the picked one gets a ring, so its colours stay. */
+.group button.logo { padding: 3px 6px; line-height: 0; }
+.logo svg { width: 20px; height: 20px; opacity: 0.6; transition: opacity 0.12s; }
+.group button.logo:hover svg, .group button.logo.on svg { opacity: 1; }
+.group button.logo.on { background: var(--raised); box-shadow: inset 0 0 0 1.5px var(--accent); }
 main { flex: 1; min-height: 0; position: relative; }
 #chart { position: absolute; inset: 0; }
 #readout { position: absolute; top: 8px; left: 12px; z-index: 3; pointer-events: none; font-size: 13px; }
 #readout span { margin-right: 8px; }
 #readout b { font-weight: 500; }
-#readout .up { color: #26a69a; margin-right: 8px; }
-#readout .down { color: #ef5350; margin-right: 8px; }
+#readout .up { color: var(--up); margin-right: 8px; }
+#readout .down { color: var(--down); margin-right: 8px; }
 /* Settings for the selected drawing, under the readout. */
 .drawing-bar {
   position: absolute; top: 32px; left: 12px; z-index: 3; display: flex; align-items: center; gap: 8px;
-  padding: 4px 8px; background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; font-size: 13px;
+  padding: 4px 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 20px #0006;
   flex-wrap: wrap; max-width: calc(100% - 110px);
 }
 .drawing-bar[hidden] { display: none; }
@@ -35,57 +59,59 @@ main { flex: 1; min-height: 0; position: relative; }
 /* Settings panel, over the chart's top right. */
 .settings {
   position: absolute; top: 8px; right: 70px; z-index: 4; width: 360px; padding: 4px 14px 12px;
-  background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; font-size: 13px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px #0008;
   max-height: calc(100% - 16px); overflow-y: auto; box-sizing: border-box;
 }
 .settings[hidden] { display: none; }
 .settings h3 { font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
 .settings div { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
-.settings input[type=number] { width: 56px; background: #131722; color: inherit; border: 1px solid #2a2e39; padding: 3px 4px; font: inherit; }
+.settings input[type=number] {
+  width: 56px; background: var(--bg); color: inherit; border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; font: inherit;
+}
 .settings input[type=color] { width: 28px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; }
 .settings dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
-.settings dt { color: #9598a1; }
+.settings dt { color: var(--muted); }
 .settings dd { margin: 0; }
 /* An asset group's name before its buttons (Markets, Macro). */
-.labelled { display: flex; align-items: center; gap: 6px; color: #787b86; font-size: 12px; }
-/* Header links between the pages. */
-nav.pages { flex: none; gap: 6px; color: #787b86; }
-.pages a { color: #b2b5be; text-decoration: none; }
-.pages a[href]:hover { color: #fff; }
-.pages a.on { color: #fff; }
+.labelled { display: flex; align-items: center; gap: 6px; color: var(--faint); font-size: 11px; letter-spacing: 0.04em; }
+/* Tabs between the pages. */
+nav.pages { flex: none; gap: 2px; padding-right: 10px; margin-right: 2px; border-right: 1px solid var(--border); }
+.pages a { color: var(--muted); text-decoration: none; padding: 5px 10px; border-radius: 6px; font-weight: 500; }
+.pages a[href]:hover { color: var(--text); background: var(--raised); }
+.pages a.on { color: var(--text); background: var(--raised); }
 /* Cycles page: legend rows (click to hide/show a cycle) with each cycle's ROI and date on the hovered day. */
 #readout > b { font-size: 15px; font-weight: 600; }
-#readout > div { color: #9598a1; margin: 6px 0 2px; }
+#readout > div { color: var(--muted); margin: 6px 0 2px; }
 #readout table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
 #readout tr { pointer-events: auto; cursor: pointer; }
-#readout tr:hover { background: #2a2e3980; }
+#readout tr:hover { background: #ffffff10; }
 #readout td { padding: 1px 12px 1px 0; }
 #readout td:nth-child(2) { text-align: right; font-weight: 500; }
-#readout td:nth-child(3) { color: #9598a1; }
+#readout td:nth-child(3) { color: var(--muted); }
 #readout tr.off { opacity: 0.4; }
 #readout tr.off td:first-child { text-decoration: line-through; }
 #readout i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin: 0 6px 3px 0; }
 /* Table pages (Seasonality, DCA): the page scrolls under each table's header row, and a table's bottom rows stay in view. */
 .page { overflow: auto; padding: 0 12px; }
-.title { margin: 10px 0 8px; color: #9598a1; font-size: 13px; }
-.title b { color: #d1d4dc; font-size: 15px; font-weight: 600; margin-right: 8px; }
+.title { margin: 14px 0 10px; color: var(--muted); }
+.title b { color: var(--text); font-size: 15px; font-weight: 600; margin-right: 8px; }
 .heat { border-spacing: 0; font-variant-numeric: tabular-nums; font-size: 13px; }
-.heat th, .heat td { border: 1px solid #131722; padding: 4px 8px; min-width: 52px; text-align: right; white-space: nowrap; }
-.heat th { color: #9598a1; font-weight: 500; }
+.heat th, .heat td { border: 1px solid var(--bg); padding: 4px 8px; min-width: 52px; text-align: right; white-space: nowrap; }
+.heat th { color: var(--muted); font-weight: 500; }
 .heat tbody th, .heat tfoot th { text-align: left; min-width: 0; }
-.heat thead, .heat tfoot { position: sticky; z-index: 1; background: #131722; }
+.heat thead, .heat tfoot { position: sticky; z-index: 1; background: var(--bg); }
 .heat thead { top: 0; }
 .heat tfoot { bottom: 0; }
 .heat tfoot tr:first-child > * { border-top-width: 8px; }
-.heat tfoot th { color: #d1d4dc; }
-.heat tbody tr:hover { background: #2a2e39; }
+.heat tfoot th { color: var(--text); }
+.heat tbody tr:hover { background: var(--raised); }
 .heat td.partial { opacity: 0.4; }
 /* Seasonality: the full-year column set apart. */
 #table tr > :last-child { border-left-width: 8px; font-weight: 500; }
 /* DCA: the headline, the best day's numbers in bold, and bars from a middle line (more of the asset: right, green). */
 #headline { margin: 0 0 10px; font-size: 14px; }
-#headline .up { color: #26a69a; }
-#headline .down { color: #ef5350; }
+#headline .up { color: var(--up); }
+#headline .down { color: var(--down); }
 .heat .best, .heat .best > th { font-weight: 700; color: #fff; }
 .heat td.bar { text-align: left; }
 .heat .bar span { display: inline-block; position: relative; width: 160px; height: 12px; margin-right: 10px; vertical-align: -1px; }

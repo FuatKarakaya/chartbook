@@ -29,11 +29,13 @@ const save = () => history.replaceState(null, '', `?${new URLSearchParams({
 const chart = createOptionsChart(document.getElementById('chart')!, {
   autoSize: true,
   // attributionLogo is required by the Lightweight Charts Apache-2.0 licence notice.
-  layout: { background: { color: '#131722' }, textColor: '#d1d4dc', attributionLogo: true },
+  layout: {
+    background: { color: '#0f1219' }, textColor: '#8b91a0', fontFamily: "Inter, 'Segoe UI', system-ui, sans-serif", attributionLogo: true,
+  },
   localization: { priceFormatter: formatRoi, precision: 0, timeFormatter: (day: number) => `Day ${day}` },
-  grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-  rightPriceScale: { borderColor: '#2a2e39' },
-  timeScale: { borderColor: '#2a2e39' },
+  grid: { vertLines: { color: '#171b24' }, horzLines: { color: '#171b24' } },
+  rightPriceScale: { borderColor: '#262c39' },
+  timeScale: { borderColor: '#262c39' },
 });
 const setScale = () => chart.applyOptions({
   rightPriceScale: { mode: state.scale === 'log' ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal },

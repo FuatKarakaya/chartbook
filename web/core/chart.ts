@@ -2,7 +2,7 @@ import { CandlestickSeries, createChart, LineSeries, PriceScaleMode } from 'ligh
 import type { CandlestickData, IPanePrimitive, ISeriesApi, ISeriesPrimitive, LineData, Logical, UTCTimestamp } from 'lightweight-charts';
 import type { Candle, Point } from '../../shared/types.ts';
 import { futureDates } from './future.ts';
-import { timeline } from './timeline.ts';
+import { carryRange, timeline } from './timeline.ts';
 
 const UP = '#26a69a';
 const DOWN = '#ef5350';
@@ -11,6 +11,8 @@ const MARK = '#9598a1';
 const RIGHT_SPACE = 40;
 /** Bars shown when a chart opens; older history is a scroll or zoom away. */
 const START_BARS = 400;
+/** Fewest bars shown when a short stretch moves to a longer timeframe (2 days of 1h on 1W). */
+const MIN_BARS = 20;
 
 const num = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 });
 export const formatPrice = (p: number) => num.format(p);
@@ -25,11 +27,13 @@ export function createMainChart(el: HTMLElement) {
   const chart = createChart(el, {
     autoSize: true,
     // attributionLogo is required by the Lightweight Charts Apache-2.0 licence notice.
-    layout: { background: { color: '#131722' }, textColor: '#d1d4dc', attributionLogo: true },
+    layout: {
+      background: { color: '#0f1219' }, textColor: '#8b91a0', fontFamily: "Inter, 'Segoe UI', system-ui, sans-serif", attributionLogo: true,
+    },
     localization: { priceFormatter: formatPrice },
-    grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-    rightPriceScale: { mode: PriceScaleMode.Logarithmic, borderColor: '#2a2e39' },
-    timeScale: { borderColor: '#2a2e39', rightOffset: RIGHT_SPACE },
+    grid: { vertLines: { color: '#171b24' }, horzLines: { color: '#171b24' } },
+    rightPriceScale: { mode: PriceScaleMode.Logarithmic, borderColor: '#262c39' },
+    timeScale: { borderColor: '#262c39', rightOffset: RIGHT_SPACE },
   });
   const time = chart.timeScale();
   const candles = chart.addSeries(CandlestickSeries, {
@@ -110,9 +114,13 @@ export function createMainChart(el: HTMLElement) {
     chart,
     /** The candle series; its price scale places drawings (it converts prices even while hidden in line mode). */
     series: candles,
-    /** Replaces the bars and their close line. Jumps to the latest bars, unless `keepView` (a refresh of the same chart). */
+    /**
+     * Replaces the bars and their close line. Jumps to the latest bars, unless `keepView`: then it shows the same
+     * stretch of time as before (a refresh, or another timeframe of the same chart).
+     */
     setData(candleList: Candle[], hourly: boolean, keepView = false) {
-      const view = time.getVisibleLogicalRange();
+      const view = keepView ? time.getVisibleLogicalRange() : null;
+      const before = line;
       bars = candleList;
       intraday = hourly;
       line = timeline(bars.map((b) => b.time));
@@ -122,7 +130,8 @@ export function createMainChart(el: HTMLElement) {
       for (const s of [candles, close]) s.applyOptions({ priceFormat: { type: 'price', precision, minMove: 10 ** -precision } });
       candles.setData(bars as CandlestickData<UTCTimestamp>[]);
       close.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })));
-      time.setVisibleLogicalRange(keepView && view ? view
+      const maxBars = time.width() / chart.options().timeScale.minBarSpacing;
+      time.setVisibleLogicalRange(view ? carryRange(view, before, line, MIN_BARS, maxBars)
         : { from: Math.max(0, bars.length - START_BARS), to: bars.length - 1 + RIGHT_SPACE });
     },
     /** Replaces the lines over the bars (call after setData); each one's latest value shows on the price scale. */

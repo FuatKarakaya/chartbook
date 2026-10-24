@@ -79,7 +79,7 @@ function showLines() {
   showLast();
 }
 
-/** Fetches and shows the current chart and timeframe; `keepView` keeps zoom and scroll (the Refresh button). */
+/** Fetches and shows the current chart and timeframe; `keepView` keeps the stretch of time on screen (Refresh, timeframes). */
 async function load(keepView = false) {
   save();
   const t = ticker();
@@ -135,7 +135,7 @@ const editor = drawingEditor(main, chartEl, TOOLS, {
 
 const showPick = assetSwitcher(toolbar, state.asset, showChart);
 const pickInterval = buttonGroup(toolbar, INTERVALS.map((i, n) => [i, i, `Shift+${n + 1}`]), state.interval, (i) => {
-  state.interval = i; load();
+  state.interval = i; load(true);
 });
 const setLog = (log: boolean) => {
   state.log = log; main.setLog(log); pickScale(log ? 'log' : 'linear'); save();

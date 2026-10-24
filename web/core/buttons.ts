@@ -1,4 +1,5 @@
 import { ASSET_GROUPS, ASSET_NAMES, ASSETS, type Asset } from '../../shared/types.ts';
+import { LOGOS } from './logos.ts';
 
 /** Keyboard shortcuts, in the order made, for the list in Settings. */
 export const shortcuts: { key: string; label: string; run: () => void }[] = [];
@@ -71,17 +72,29 @@ export function toggle(parent: HTMLElement, label: string, on: boolean, onChange
   return b;
 }
 
-/** The asset buttons with their keys (1-9, then 0), in labelled groups. Returns a setter for showing the pick. */
+/**
+ * The asset buttons with their keys (1-9, then 0), in labelled groups; BTC, ETH, Gold and Silver show their logo.
+ * Returns a setter for showing the pick.
+ */
 export function assetButtons(parent: HTMLElement, asset: Asset, onPick: (asset: Asset) => void, groups = ASSET_GROUPS) {
   const pickers = groups.map(([label, assets]) => {
     const box = parent.appendChild(document.createElement('div'));
     box.className = 'labelled';
     box.append(label);
     const options = assets.map((a): [Asset, string, string] => [a, ASSET_NAMES[a], String((ASSETS.indexOf(a) + 1) % 10)]);
-    return buttonGroup(box, options, asset, (a) => {
+    const pick = buttonGroup(box, options, asset, (a) => {
       show(a);
       onPick(a);
     });
+    box.querySelectorAll('button').forEach((b, i) => {
+      const [a, name, key] = options[i];
+      if (!LOGOS[a]) return;
+      b.innerHTML = LOGOS[a];
+      b.classList.add('logo');
+      b.title = `${name} (key: ${key})`;
+      b.ariaLabel = name;
+    });
+    return pick;
   });
   const show = (picked: Asset) => pickers.forEach((p) => p(picked));
   return show;
