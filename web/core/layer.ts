@@ -35,7 +35,7 @@ export function drawingLayer(
     for (const d of drawings) toolOf(d).draw(ctx, px(d, v), d, v, d === selected);
     if (ruler) toolOf(ruler).draw(ctx, px(ruler, v), ruler, v, false);
     if (preview) toolOf(preview).draw(ctx, px(preview, v), preview, v, true);
-    for (const p of selected ? px(selected, v) : []) dot(ctx, p, 5, '#131722');
+    for (const p of selected ? px(selected, v) : []) dot(ctx, p, 5, '#0f1219');
   }
 
   /** The drawing under the mouse; `handle` is the grabbed handle's index, or -1 for the body. */

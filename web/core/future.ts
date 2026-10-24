@@ -81,7 +81,7 @@ export function futureDates(chart: IChartApi, series: ISeriesApi<SeriesType>, li
   let hover = { x: 0, text: '' };
   let labels: ISeriesPrimitiveAxisView[] = [];
   const label: ISeriesPrimitiveAxisView = {
-    coordinate: () => hover.x, text: () => hover.text, textColor: () => '#131722', backColor: () => FUTURE, tickVisible: () => false,
+    coordinate: () => hover.x, text: () => hover.text, textColor: () => '#0f1219', backColor: () => FUTURE, tickVisible: () => false,
   };
   const shown = () => series.options().visible && line.last() >= 0;
   chart.subscribeCrosshairMove(({ logical }) => {
