@@ -1,9 +1,11 @@
-import type { Candle, Drawing, Ticker } from './types.ts';
+import type { Candle, Drawing, Interval, Ticker } from './types.ts';
 
 /** A ghost copy of a stretch of candles (PLAN.md's stored shape). */
 export interface Fractal extends Drawing {
   /** An asset, or a ratio of two. */
   sourceAsset: Ticker;
+  /** The chart timeframe on which the pattern was copied; omitted in older saved drawings. */
+  sourceInterval?: Interval;
   /** The stretch copied (UTC seconds). */
   srcStart: number;
   srcEnd: number;
@@ -29,13 +31,13 @@ export function stretch(all: Candle[], from: number, to: number) {
  * (price_i = anchorPrice * (c_i / c_0) ^ (moveScale * (flip ? -1 : 1))) and time stretched
  * (t_i = anchorTime + timeScale * (t_i_src - t_0_src)). Flipped, highs and lows swap.
  */
-export function project(f: Fractal, src: Candle[]): Candle[] {
+export function project(f: Fractal, src: Candle[], timeAt?: (index: number) => number): Candle[] {
   const k = f.moveScale * (f.flip ? -1 : 1);
   const at = (p: number) => f.anchorPrice * (p / src[0].close) ** k;
-  return src.map((c) => {
+  return src.map((c, i) => {
     const [high, low] = [at(c.high), at(c.low)];
     return {
-      time: f.anchorTime + f.timeScale * (c.time - src[0].time),
+      time: timeAt ? timeAt(i) : f.anchorTime + f.timeScale * (c.time - src[0].time),
       open: at(c.open), high: Math.max(high, low), low: Math.min(high, low), close: at(c.close),
     };
   });

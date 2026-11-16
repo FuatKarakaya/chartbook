@@ -4,6 +4,7 @@ import { ASSETS, type Asset, type Interval, type Ticker } from '../shared/types.
 import type { Db } from './db.ts';
 import { ratio } from './ratio.ts';
 import { failing } from './updater.ts';
+import { silverWeeks } from './sources/silver-history.ts';
 
 /** Which stored series each timeframe is built from (4h from 1h, 1W/1M from 1D). */
 const BASE: Record<Interval, '1h' | '1D'> = { '1h': '1h', '4h': '1h', '1D': '1D', '1W': '1D', '1M': '1D' };
@@ -22,6 +23,7 @@ export function api(db: Db) {
       if (!a || !(interval in BASE)) return c.json({ error: `unknown asset/interval: ${asset} ${interval}` }, 404);
       // A ratio is divided bar by bar on the stored series, then built up like any other (a weekly high is the highest daily one).
       const base = BASE[interval];
+      if (a === 'silver' && !b && interval === '1W') return c.json(silverWeeks(db.candles('silver', '1W'), db.candles('silver', '1D')));
       const stored = b ? ratio(db.candles(a, base), db.candles(b, base)) : db.candles(a, base);
       return c.json(interval === base ? stored : aggregate(stored, bucket[interval as keyof typeof bucket]));
     })

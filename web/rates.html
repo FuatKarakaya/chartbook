@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>chartbook · Rate Hikes</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header><nav class="pages" aria-label="Pages"><a href="./">Chart</a><a href="./cycles.html">Cycles</a><a class="on" aria-current="page">Rate Hikes</a><a href="./seasonality.html">Seasonality</a><a href="./dca.html">DCA</a></nav>
+      <nav id="toolbar" aria-label="Rate hike controls"></nav></header>
+    <main class="rates-page">
+      <div class="rates-heading"><div><span class="eyebrow">FEDERAL RESERVE / CYCLE STUDY</span><h1 id="rate-title">Returns after a rate hike</h1><p id="rate-status" role="status">Loading price history…</p></div><a class="action-link" id="open-overlay" href="./?asset=fed&overlay=silver&scale=linear&show=">View asset over Fed rate ↗</a></div>
+      <div class="rates-workspace"><div class="rate-plot"><div id="rate-chart"></div><div class="axis-caption">Calendar days since hike announcement · ROI (1.00 = starting price)</div></div>
+        <aside class="rate-sidebar"><div class="legend-heading">CYCLES <button id="show-all">Show all</button></div><p>Click a cycle to show or hide it.</p><div id="rate-legend"></div><div id="rate-hover" aria-live="off"></div></aside></div>
+      <details class="methodology"><summary>How to read this chart &amp; data sources</summary>
+        <p>Each line is the asset’s daily close divided by its close on the hike announcement date: 1.20 means +20%, 0.80 means −20%. The study covers announced Fed tightening cycles since 1994. September midterm hikes covers 2018, 2022 and 2026. Cycles before the asset’s daily history are omitted.</p>
+        <p>The dashed historical average equally weights available prior cycles and excludes the latest event (September 2026). Hiding a line does not change the average. The hover readout shows the number of contributing cycles at each day. Closed markets carry the last close for up to four calendar days; lines stop at the latest actual observation. Moving averages use trailing calendar days.</p>
+        <p>Silver uses daily spot history from 2001, including the existing spot-adjusted futures continuation. The older weekly COMEX archive is not treated as daily prices. Returns are price returns, excluding dividends, fees and inflation.</p>
+        <p>Dates: <a href="https://www.federalreserve.gov/monetarypolicy/openmarket.htm" target="_blank" rel="noreferrer">Federal Reserve</a>, <a href="https://www.federalreserve.gov/monetarypolicy/openmarket_archive.htm" target="_blank" rel="noreferrer">historical archive</a>, <a href="https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm" target="_blank" rel="noreferrer">September 2026 announcement</a>. Announcement dates can precede the effective date by one day.</p>
+      </details>
+    </main>
+    <script type="module" src="./pages/rates.ts"></script>
+  </body>
+</html>

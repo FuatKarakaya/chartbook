@@ -88,3 +88,17 @@ it('a full re-download replaces older stored candles too', () => {
   db.save('silver', '1D', [bar(172800, 3)], -2e9);
   expect(db.candles('silver', '1D')).toEqual([bar(172800, 3)]);
 });
+
+it('adds historical silver only to standalone weekly candles and lets modern spot own the seam', async () => {
+  const db = openDb(':memory:');
+  const mon = 4 * 86400;
+  db.save('silver', '1W', [bar(mon - 7 * 86400, 2), bar(mon, 99)]);
+  db.save('silver', '1D', [bar(mon, 5), bar(mon + 86400, 6)]);
+  db.save('gold', '1D', [bar(mon, 2)]);
+  const app = api(db);
+  const get = async (a: string, i: string) => (await app.request(`/candles?asset=${a}&interval=${i}`)).json();
+  expect(await get('silver', '1W')).toEqual([bar(mon - 7 * 86400, 2), { time: mon, open: 5, high: 6, low: 5, close: 6 }]);
+  expect(await get('silver', '1D')).toHaveLength(2);
+  expect(await get('silver', '1M')).toHaveLength(1);
+  expect(await get('silver/gold', '1W')).toHaveLength(1);
+});

@@ -4,11 +4,11 @@ import { chromium } from 'playwright';
 
 const url = process.argv[2] ?? 'http://localhost:3000';
 const out = process.argv[3] ?? 'shots/chart.png';
-const browser = await chromium.launch();
+const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL ?? (process.platform === 'win32' ? 'msedge' : undefined) });
 const page = await browser.newPage({ viewport: { width: 1400, height: 800 }, locale: 'en-US' });
 page.on('pageerror', (err) => console.error('page error:', err.message));
 await page.goto(url);
-await page.waitForFunction(() => document.querySelector('#readout, .heat')?.textContent);
+await page.waitForFunction(() => document.querySelector('#readout, .heat, #rate-legend')?.textContent);
 await page.waitForTimeout(500);
 await page.screenshot({ path: out });
 await browser.close();

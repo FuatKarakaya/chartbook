@@ -11,7 +11,7 @@ export function shortcut(key: string, label: string, run: () => void) {
 
 // Not while typing in a box or holding Ctrl/Alt (Ctrl+Z is the drawings' undo).
 addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
   // Digits by key position, so Shift+1 is the same on every keyboard layout (and the number pad works too).
   const digit = /^(?:Digit|Numpad)(\d)$/.exec(e.code)?.[1];
   const key = digit ? `${e.shiftKey ? 'Shift+' : ''}${digit}` : e.key.toUpperCase();

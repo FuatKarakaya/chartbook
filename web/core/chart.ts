@@ -40,6 +40,7 @@ export function createMainChart(el: HTMLElement) {
     upColor: UP, downColor: DOWN, borderVisible: false, wickUpColor: UP, wickDownColor: DOWN,
   });
   const close = chart.addSeries(LineSeries, { color: '#d1d4dc', lineWidth: 2, visible: false });
+  const overlay = chart.addSeries(LineSeries, { color: '#fbbf24', lineWidth: 2, priceScaleId: 'left', priceLineVisible: false });
   const series: ISeriesApi<'Line'>[] = []; // one per overlay line, made as needed
   let bars: Candle[] = [];
   let lines: Line[] = [];
@@ -55,6 +56,11 @@ export function createMainChart(el: HTMLElement) {
   };
   const x = (t: number) => xAt(line.toLogical(t));
   const y = (price: number) => candles.priceToCoordinate(price) ?? NaN;
+  const resetView = () => {
+    chart.priceScale('right').applyOptions({ autoScale: true });
+    chart.priceScale('left').applyOptions({ autoScale: true });
+    if (bars.length) time.setVisibleLogicalRange({ from: Math.max(0, bars.length - START_BARS), to: bars.length - 1 + RIGHT_SPACE });
+  };
   // On both series, as one is hidden at a time (candles or line); each shows the dates while it is shown.
   const dates = { last: () => bars.length - 1, toTime: (l: number) => line.toTime(l), x, intraday: () => intraday };
   for (const s of [candles, close]) futureDates(chart, s, dates);
@@ -114,6 +120,7 @@ export function createMainChart(el: HTMLElement) {
     chart,
     /** The candle series; its price scale places drawings (it converts prices even while hidden in line mode). */
     series: candles,
+    resetView,
     /**
      * Replaces the bars and their close line. Jumps to the latest bars, unless `keepView`: then it shows the same
      * stretch of time as before (a refresh, or another timeframe of the same chart).
@@ -121,18 +128,24 @@ export function createMainChart(el: HTMLElement) {
     setData(candleList: Candle[], hourly: boolean, keepView = false) {
       const view = keepView ? time.getVisibleLogicalRange() : null;
       const before = line;
+      // All series share one time axis. Old indicator dates must be removed before
+      // installing a new asset/timeframe, or the logical indices point at gaps.
+      lines = [];
+      overlay.setData([]);
+      series.forEach((s) => s.setData([]));
       bars = candleList;
       intraday = hourly;
       line = timeline(bars.map((b) => b.time));
       chart.applyOptions({ timeScale: { timeVisible: hourly } });
       // Price steps fine enough for the lowest price (silver in BTC is 0.0007), or the price scale shows no marks.
-      const precision = Math.max(2, 3 - Math.floor(Math.log10(bars.reduce((m, b) => Math.min(m, b.low), Infinity))));
+      const low = bars.reduce((m, b) => b.low > 0 ? Math.min(m, b.low) : m, Infinity);
+      const precision = Number.isFinite(low) ? Math.min(12, Math.max(2, 3 - Math.floor(Math.log10(low)))) : 2;
       for (const s of [candles, close]) s.applyOptions({ priceFormat: { type: 'price', precision, minMove: 10 ** -precision } });
       candles.setData(bars as CandlestickData<UTCTimestamp>[]);
       close.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })));
       const maxBars = time.width() / chart.options().timeScale.minBarSpacing;
-      time.setVisibleLogicalRange(view ? carryRange(view, before, line, MIN_BARS, maxBars)
-        : { from: Math.max(0, bars.length - START_BARS), to: bars.length - 1 + RIGHT_SPACE });
+      if (view && bars.length) time.setVisibleLogicalRange(carryRange(view, before, line, MIN_BARS, maxBars));
+      else resetView();
     },
     /** Replaces the lines over the bars (call after setData); each one's latest value shows on the price scale. */
     setLines(list: Line[]) {
@@ -148,6 +161,12 @@ export function createMainChart(el: HTMLElement) {
     setMarks(list: Mark[]) {
       marks = list;
       redraw();
+    },
+    /** Independent USD axis, sampled only on existing chart dates. */
+    setOverlay(points: Point[], name: string) {
+      overlay.setData(points as LineData<UTCTimestamp>[]);
+      overlay.applyOptions({ title: name, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } });
+      chart.applyOptions({ leftPriceScale: { visible: points.length > 0, autoScale: true, borderColor: '#262c39', mode: PriceScaleMode.Normal } });
     },
     setLog: (log: boolean) =>
       chart.applyOptions({ rightPriceScale: { mode: log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal } }),

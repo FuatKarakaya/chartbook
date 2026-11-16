@@ -1,0 +1,107 @@
+// Browser checks with real local price history; drawing writes remain in browser memory.
+import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
+import { chromium } from 'playwright';
+import { createServer } from 'vite';
+
+mkdirSync('shots', { recursive: true });
+const server = await createServer({ server: { port: 3002, strictPort: true } });
+await server.listen();
+const browser = await chromium.launch({ channel: 'msedge' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const errors: string[] = [];
+page.on('pageerror', e => errors.push(e.message));
+let fail = false, empty = false, delay = false;
+await page.route('**/api/**', async route => {
+  const url = new URL(route.request().url());
+  if (url.pathname.endsWith('/drawings')) return route.fulfill({ json: [{ id: 'old', type: 'pattern' }] });
+  if (fail && url.pathname.endsWith('/candles')) return route.fulfill({ status: 503 });
+  if (empty && url.pathname.endsWith('/candles')) return route.fulfill({ json: [] });
+  url.port = '3000';
+  const response = await route.fetch({ url: url.href });
+  if (delay && url.searchParams.get('asset') === 'btc') await new Promise(r => setTimeout(r, 900));
+  await route.fulfill({ response });
+});
+await page.route('**/pages/rates.ts', async route => {
+  const response = await route.fetch();
+  await route.fulfill({ response, body: await response.text() + '\nglobalThis.__rates={chart,rows:()=>rows,average:()=>average,state};' });
+});
+await page.route('**/main.ts', async route => {
+  const response = await route.fetch();
+  await route.fulfill({ response, body: await response.text() + '\nglobalThis.__main={main,editor,state,bars:()=>bars};' });
+});
+const ready = () => page.waitForFunction(() => document.querySelector('#rate-status')?.textContent?.includes('cycles ·'));
+const state = () => page.evaluate(() => {
+  const r = (window as any).__rates;
+  return { visible: r.rows().filter((r: any) => r.series.options().visible).map((r: any) => r.key), average: r.average(), rows: r.rows().map((r: any) => ({ key: r.key, points: r.points })) };
+});
+try {
+  await page.goto('http://localhost:3000/rates.html'); await ready();
+  await page.screenshot({ path: 'shots/rate-hikes-silver.png' });
+  assert.equal(await page.locator('.cycle-toggle').count(), 5);
+  await page.goto('http://localhost:3002/rates.html'); await ready();
+  await page.waitForFunction(() => (window as any).__rates);
+  let data = await state();
+  assert.deepEqual(data.rows.map((r: any) => r.key), ['2004-06-30', '2015-12-16', '2022-03-16', '2026-09-16', 'average']);
+  assert.equal(data.average[0].count, 3);
+  assert.ok(data.rows.every((r: any) => r.points[0].roi === 1));
+  const day60 = data.rows.slice(0, 3).reduce((sum: number, r: any) => sum + r.points.find((p: any) => p.day === 60).roi, 0) / 3;
+  assert.ok(Math.abs(day60 - data.average.find((p: any) => p.day === 60).roi) < 1e-12);
+  await page.getByLabel('View', { exact: true }).selectOption('average');
+  assert.deepEqual((await state()).visible, ['average']);
+  await page.getByLabel('View', { exact: true }).selectOption('2022-03-16');
+  assert.deepEqual((await state()).visible, ['2022-03-16']);
+  await page.getByLabel('View', { exact: true }).selectOption('latest');
+  assert.deepEqual((await state()).visible, ['2026-09-16', 'average']);
+  await page.getByLabel('Window').selectOption('730');
+  assert.equal((await state()).average.at(-1).day, 730);
+  assert.ok((await state()).rows.find((r: any) => r.key === '2026-09-16').points.at(-1).day < 90);
+  await page.getByLabel('Moving average').selectOption('7');
+  await page.getByLabel('ROI scale').selectOption('log');
+  await page.getByLabel('Event', { exact: true }).selectOption('september');
+  assert.equal((await state()).average[0].count, 2);
+  await page.getByLabel('View', { exact: true }).selectOption('latest');
+  await page.screenshot({ path: 'shots/rate-hikes-september.png' });
+  await page.reload(); await ready(); await page.waitForFunction(() => (window as any).__rates);
+  assert.deepEqual((await state()).visible, ['2026-09-16', 'average']);
+  await page.getByRole('button', { name: /Historical average/ }).click();
+  assert.deepEqual((await state()).visible, ['2026-09-16']);
+  await page.getByRole('button', { name: 'Show all' }).click();
+  assert.equal((await state()).visible.length, 4);
+  delay = true;
+  await page.getByLabel('Asset', { exact: true }).selectOption('btc');
+  await page.getByLabel('Asset', { exact: true }).selectOption('silver'); await ready();
+  await page.waitForTimeout(1100); delay = false;
+  assert.match(await page.locator('#rate-title').innerText(), /^Silver/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'shots/rate-hikes-mobile.png', fullPage: true });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  empty = true; await page.getByLabel('Asset', { exact: true }).selectOption('eth');
+  await page.getByText('No daily history overlaps', { exact: false }).waitFor();
+  empty = false; fail = true;
+  await page.getByLabel('Asset', { exact: true }).selectOption('silver');
+  await page.getByRole('button', { name: 'Retry' }).waitFor();
+  fail = false; await page.getByRole('button', { name: 'Retry' }).click(); await ready();
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('http://localhost:3002/?asset=fed&overlay=silver&scale=linear&show=');
+  await page.waitForFunction(() => (window as any).__main);
+  assert.match(await page.locator('#overlay-readout').innerText(), /Silver/);
+  assert.equal(await page.locator('#fed-note').isVisible(), true);
+  assert.equal(await page.evaluate(() => (window as any).__main.main.chart.priceScale('left').options().visible), true);
+  assert.equal(await page.evaluate(() => (window as any).__main.editor.count()), 0);
+  assert.equal(await page.getByRole('button', { name: 'Pattern', exact: true }).count(), 0);
+  await page.evaluate(() => (window as any).__main.main.chart.timeScale().setVisibleRange({ from: Date.UTC(2015, 0, 1) / 1000, to: Date.UTC(2020, 6, 1) / 1000 }));
+  await page.screenshot({ path: 'shots/fed-silver-overlay.png' });
+  assert.ok((await page.locator('header').boundingBox())!.height < 115);
+  await page.getByLabel('Overlay asset').selectOption('gold');
+  await page.waitForFunction(() => document.querySelector('#overlay-readout')?.textContent?.includes('Gold'));
+  await page.getByLabel('Overlay asset').selectOption('');
+  await page.waitForFunction(() => !(window as any).__main.main.chart.priceScale('left').options().visible);
+  await page.getByLabel('Overlay asset').selectOption('silver');
+  await page.locator('#toolbar').getByRole('button', { name: 'BTC', exact: true }).click();
+  await page.waitForFunction(() => !(window as any).__main.main.chart.priceScale('left').options().visible && (window as any).__main.state.asset === 'btc');
+  assert.equal(await page.getByLabel('Overlay asset').isVisible(), false);
+  assert.deepEqual(errors, []);
+  console.log('PASS silver cycles, arithmetic average, individual/average/latest views, windows, smoothing, scale, September events, URL persistence, toggles, stale requests, mobile, empty/error/retry, Fed overlays and legacy drawing removal');
+} finally { await browser.close(); await server.close(); }

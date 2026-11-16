@@ -1,7 +1,7 @@
 import type { Anchor, Drawing, PointDrawing, Ticker } from '../../shared/types.ts';
 import type { createMainChart } from './chart.ts';
 import { drawingLayer } from './layer.ts';
-import { handlesOf, type Edit, type Px, type Strip, type Tool } from './tool.ts';
+import { handlesOf, type Edit, type Px, type Tool } from './tool.ts';
 import { chartView } from './view.ts';
 
 interface Drag { d: Drawing; handle: number; start: Anchor[]; from: Px; moved: boolean }
@@ -10,8 +10,8 @@ interface App {
   save(drawings: Drawing[]): void;
   /** A tool finished or was cancelled. */
   toolDone(): void;
-  /** Switches the chart to another asset (a fractal copied onto it, a pattern's fit gone to). */
-  showAsset(asset: Ticker): Promise<void>;
+  /** Switches the chart to another asset (a fractal copied onto it). */
+  showAsset(asset: Ticker): Promise<boolean>;
 }
 
 /**
@@ -33,9 +33,8 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
   let mouse: Anchor | null = null;
   let drag: Drag | null = null;
   let ruler: Drawing | null = null; // a finished temporary measurement
-  let strip: Strip | null = null; // a fit gone to from another chart's pattern
 
-  // Another chart's candles arrived: the selected drawing's bar is rebuilt, as it may show them (a pattern's fits).
+  // Rebuild the selected drawing's controls when source candles arrive.
   const coords = chartView(main, () => {
     select(selected);
     layer.redraw();
@@ -47,7 +46,7 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
     return made && { id: crypto.randomUUID(), type: tool!.type, ...made };
   };
   const layer = drawingLayer(main, coords, toolOf, () => ({
-    drawings, selected, ruler, strip, making: !!tool, dragging: !!drag,
+    drawings, selected, ruler, making: !!tool, dragging: !!drag,
     preview: tool && pending.length && mouse ? make([...pending, mouse]) : null,
   }));
   const commit = () => {
@@ -67,14 +66,10 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
   };
   const edit: Edit<Drawing> = {
     changed: (done) => (done ? commit() : layer.redraw()),
-    copyTo: (a, copy) => void app.showAsset(a).then(() => add({ ...copy(view().bars), id: crypto.randomUUID() }, true)),
-    add: (d) => add({ ...d, id: crypto.randomUUID() }),
-    reveal: (times) => coords.reveal(times),
-    goTo: (asset, s) => void app.showAsset(asset).then(() => {
-      strip = s;
-      coords.reveal([s.from, s.after]);
-      layer.redraw();
+    copyTo: (a, copy) => void app.showAsset(a).then((shown) => {
+      if (shown && view().asset === a && view().bars.length) add({ ...copy(view().bars), id: crypto.randomUUID() }, true);
     }),
+
   };
   function select(d: Drawing | null) {
     selected = d;
@@ -171,7 +166,7 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
     if (e.key === 'Escape') {
       if (tool) finishTool();
       select(null);
-      ruler = strip = null;
+      ruler = null;
       layer.redraw();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && selected) remove();
     else if (e.key === 'z' && (e.ctrlKey || e.metaKey) && undo.length) {
@@ -187,16 +182,20 @@ export function drawingEditor(main: ReturnType<typeof createMainChart>, el: HTML
   return {
     /** Shows another chart's drawings; undo history starts fresh. */
     load(list: Drawing[]) {
-      drawings = list;
-      saved = JSON.stringify(list);
+      drag = null;
+      drawings = list.filter(d => byType.has(d.type));
+      saved = JSON.stringify(drawings);
       undo = [];
       select(null);
       pending = [];
-      ruler = strip = null;
+      ruler = null;
       layer.redraw();
     },
     /** The bars on screen, for placing drawings made on any timeframe; the selected one's bar is rebuilt for them. */
     setBars(...args: Parameters<typeof coords.setBars>) {
+      drag = null;
+      pending = [];
+      mouse = null;
       coords.setBars(...args);
       select(selected);
       layer.redraw();

@@ -9,12 +9,12 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 - Crosshair readout: date, OHLC, candle % change.
 - Empty space right of last bar so drawings can project into the future.
 - 50D + 200D SMA, always from daily closes, shown on every timeframe; each has its own on/off button. Length, colour in settings.
-- Drawing tools: trend line, ray, horizontal line, measure (% change + weeks). Select, move, drag handles, Delete, Ctrl+Z, Clear all. Saved per asset on server.
+- Drawing tools: trend line, ray, horizontal line, vertical line (V; click a date), measure (% change + weeks). Select, move, drag handles, Delete, Ctrl+Z, Clear all. Saved per asset on server.
 - Ruler (temporary, not saved; button or Shift+click): two clicks, each end jumps to the nearest open/high/low/close of
   the candle under the mouse; shows % and price change + time between. The next click or Esc clears it.
 - Fractal tool (like TradingView "Bars Pattern"): pick source range (any asset) -> ghost copy anchored at last candle -> drag to move; handles scale time and move size; label "time x1.25 · moves x0.6"; flip, colour, opacity, delete.
-  - Stored: {sourceAsset, srcStart, srcEnd, anchorTime, anchorPrice, timeScale, moveScale, flip, style}
-  - price_i = anchorPrice * (c_i / c_0) ^ (moveScale * (flip ? -1 : 1)); t_i = anchorTime + timeScale * (t_i_src - t_0_src)
+  - Stored: {sourceAsset, sourceInterval, srcStart, srcEnd, anchorTime, anchorPrice, timeScale, moveScale, flip, style}
+  - price_i = anchorPrice * (c_i / c_0) ^ (moveScale * (flip ? -1 : 1)); time advances in target trading-bar slots, then converts back to timestamps.
 - Later, not v1: ratio charts, 20W SMA + 21W EMA band, BTC halving lines, fib/channel, PNG export, 15m, notes, compare mode, BTC log regression bands.
 - Out of scope: accounts, password, alerts, deployment/Docker, timeframes < 15m, live ticks, trading, indicator libraries.
 
@@ -49,22 +49,8 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
     around each buy (3 days either side; 2 trading days for markets closed at weekends), a bar for it, and how many
     years it was the best day. Under it the same per year, colour-coded. Headline: best and worst day, what $100 a
     week put in and is worth, and roughly what the best day instead of the worst is worth in dollars.
-- Pattern tool (M10), on the Chart page: select a stretch with two clicks (key S); the past stretches whose ups and
-  downs look most like it ("fits") are found on its timeframe, in the history of the charts picked under "Search in":
-  this chart's (on its own to start) and/or BTC's, Gold's, Silver's. Built for BTC, Gold, Silver (works on any chart).
-  A bar above the chart steps through fits 1-10: each is shaded where it happened, with what came after it (as long
-  again), and can be overlaid on the stretch like a fractal, or kept as one. Another chart's fit: picking it shows its
-  overlay on the stretch; "Go to fit" switches to that chart, scrolled to the fit and shaded (until Esc).
-  - Matching (shared/patterns.ts; we may change it): each stretch cut into 12 equal pieces, compared on the pieces'
-    moves, not prices, so direction comes first. Each move counts against its own stretch's typical move (squashed:
-    a usual move counts mostly by its direction, one huge jump can't outweigh the rest, a wiggle counts little), then
-    the cosine of the two lists. Blended with how alike the overall size of the moves is by a slider (direction 50-100%,
-    starting at 70%). Look-alikes may have taken ½× to 2× as long (13 speeds, switch on by default), in time: gold's
-    daily bars skip weekends, so 90 BTC days are compared with ~64 gold bars. Fits never overlap each other on the same
-    chart, nor the pattern's time on any.
-  - Looked at: plain least squares on prices (size and level dominate), z-normalised distance (drops size entirely),
-    DTW and derivative DTW (bends time unevenly, slower), SAX symbols (loses direction inside a segment), perceptually
-    important points (turning points: used for the "↗+30% ↘-12%" swings shown, not the score).
+- Pattern matching was removed at the owner's request (2026-11-17). Fractal copying remains available.
+
 
 ## Data
 | Asset | Daily | Hourly |
@@ -83,6 +69,18 @@ Personal TradingView-lite. Runs on owner's Windows PC at http://localhost:3000. 
 - Yahoo via yahoo-finance2. Bitstamp/Stooq/Dukascopy via plain fetch. Not CoinGecko (free tier = 365 days).
 - Not Yahoo SI=F for silver: it follows thinly traded contract months, so most days are near-flat bars. Dukascopy publishes
   a day only once it is over and often answers "busy", so its files are fetched one a second with retries.
+- Silver weekly only: 1,618 genuine historical weekly OHLC bars from the week of 1969-12-29 (containing January 1, 1970)
+  through 2000-12-25, from the public [TurtleTrader futures archive](https://www.turtletrader.com/hpd/).
+  Each week uses one complete individual COMEX SI contract with the greatest weekly trading volume (including an
+  actively traded delivery month), normalized to USD/troy ounce. Prices are unadjusted; contract rolls can leave gaps.
+  Weekly volume selection uses the completed week's volume, so this is a historical chart series, not a causal roll strategy.
+  Modern daily spot aggregation owns every week from 2001-01-01 onward. The chart labels this source transition.
+  Daily/monthly, ratios, seasonality/DCA and daily moving averages retain their existing history; no synthetic daily bars.
+  Raw zip, extracted files, weekly CSV and per-week contract/input hash audit are saved in gitignored `data/imports/`.
+  Rebuild the CSV: `npx tsx scripts/silver-archive.ts data/imports/turtle-silver`; import it:
+  `npm run silver-history -- data/imports/silver-futures-weekly.csv`. The importer validates coverage/prices and makes
+  an integrity-checked SQLite snapshot in `data/backups/` before changing weekly candles. Provider CSV downloads
+  may be blocked; the saved archive makes this import reproducible without Stooq access.
 - Yahoo hourly: the 20:00 UTC S&P closing print is folded into the last bar, flat after-hours repeats are dropped.
 - BTC 2010-07-17 to 2011-12-31 daily is a committed file (server/sources/btc-2010-2011.json, made by
   scripts/btc-2010-2011.ts): CoinMetrics daily close + Mt. Gox high/low from bitcoinity.org (no wicks after the
@@ -153,13 +151,7 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
   Against the surrounding days neither matters, and BTC's Sunday close and Monday open (the same moment) agree.
   Bars and colours have one fixed scale (full at 0.5%) so gold's tiny differences look tiny. Colour-coded cells
   (core/heat.ts) and the Years lists (core/buttons.ts) are shared with Seasonality.
-- [x] M10 Pattern tool: pick a stretch, step through look-alikes, overlay or keep one as a fractal. Tests: exact,
-  bigger, upside-down and half-speed copies planted in a random walk, the slider, no overlaps, swings.
-  The overlay ends on the stretch's last close, so what came after a fit starts from today's price. The fractal maths
-  (project, stretch) moved to shared/ so both tools use it; tools can now add a drawing and scroll the chart (Edit).
-  Speed: ~20 ms on daily charts, ~200 ms on hourly (long patterns try starts a fiftieth of their length apart).
-  Then "Search in" BTC / Gold / Silver (the owner's ask: selectable): another chart's candles download on first use and
-  the bar refreshes when they're in (the editor rebuilds the selected drawing's bar when candles arrive).
+- [x] M10 retired (2026-11-17): removed matching UI, algorithms, tests and drawing support.
 - [x] Polish: on 1h/4h the 50D/200D and the band glide instead of stepping once a day (onBars: over a day's bars from
   the day before's value to the day's own, each bar's close standing in for the day's: a window sliding hour by hour,
   no peeking). Refresh / Save image / Settings are icons (names in the tooltips). The empty space right of the last bar
@@ -170,3 +162,37 @@ shared/  types.ts  time.ts  cycles.ts  seasonality.ts  dca.ts
   (the chart can't zoom out further), ending on the same latest bar. Switching asset still opens on the last 400 bars.
   BTC, ETH, Gold, Silver buttons are logos (core/logos.ts; names in the tooltips), "chartbook" left the header, and a
   new look: page tabs, rounded button groups, one colour set (CSS variables) shared by the pages and the charts.
+- [x] Reliability + silver weekly history (2026-11-15): fractals and pattern overlays project in trading-bar slots,
+  avoiding weekend/missing-week distortion. New/edited fractals keep their source timeframe across display changes;
+  older saved drawings remain readable and acquire that timeframe on edit. Hourly sources fall back to daily when needed.
+  Old indicator dates are cleared before chart replacement; asset/ratio switches restore price autoscaling. Same-chart
+  timeframe changes keep the view, recovering from future-only/unavailable-history ranges. Reset view / Home returns to
+  the latest 400 bars with right-side space. Request generations reject stale A/B/A responses and copy/go-to continuations;
+  drawing saves target the displayed chart. Pending drawing points/drags are cancelled when data switches.
+  Imported the weekly futures archive described above; no existing daily/hourly candles or drawings were replaced.
+  Validation: 110 tests in 24 files, typecheck and production build pass. `npm run check-ui` (normal server running,
+  installed Windows Edge) exercises real pointer drags, daily/weekly handles, flip, reload, timeframe preservation,
+  cross-asset copies/pattern overlays, stale copy/go-to and A/B/A races, future-only recovery, Home and ratio switches.
+  Its drawing writes are intercepted in browser memory. Screenshots and the check report are in gitignored `shots/`.
+  SQLite backups passed integrity checks; all eight original drawing rows are unchanged. No commit or push made.
+- [x] Vertical lines: toolbar Vertical / key V, one click to place a full-height date marker. Drag anywhere on the line
+  to move it; saved per chart with the existing Delete/Undo behavior. Date labels include time on hourly charts.
+  Validation: 110 tests, typecheck and build pass; browser placement, shortcut, body drag, reload, timeframe switch,
+  delete and undo checked with drawing writes intercepted. Screenshot: `shots/vertical-line.png`.
+
+- [x] Rate-hike study + Fed asset overlays (2026-11-17): new Rate Hikes page, defaulting to Silver,
+  with first-hike cycles since 1994 and September midterm hikes (2018/2022/2026), 90/180/365/730-day
+  windows, individual/all/latest/average views, trailing 7/30-day smoothing, log/linear axes,
+  clickable cycle legend, hover ROI/date/sample counts, and bookmarkable controls.
+  The arithmetic historical average excludes September 2026; hiding lines leaves its membership unchanged.
+  Closed markets carry a close for up to four calendar days, without extending past the last observation.
+  Silver uses its daily history from 2001 (2004/2015/2022/2026 cycles), not the older weekly futures archive.
+  Main Chart > Fed rate > Overlay supports market assets on an independent left axis; sampled onto the
+  base chart's dates to preserve drawing coordinates. Effective-rate month-end dips are retained and
+  explained with a Federal Reserve research link. They are market observations, not policy cuts.
+  Compact navigation, Draw and Indicators menus; old matching drawings are ignored safely on load.
+  Validation: 102 unit tests, typecheck, production build, check-ui and check-rates pass. Browser checks
+  cover real silver data/averages, single/average/latest views, filters, URL restore, stale requests,
+  empty/error/retry states, desktop/mobile layouts, overlays, and legacy drawing removal. Drawing writes
+  remain intercepted during browser checks. Screenshots: shots/rate-hikes-silver.png,
+  shots/rate-hikes-september.png, shots/rate-hikes-mobile.png and shots/fed-silver-overlay.png.

@@ -12,6 +12,7 @@ header {
   background: var(--panel); border-bottom: 1px solid var(--border);
 }
 header em { color: #f7a600; font-style: normal; }
+#history-source { color: var(--muted); font-size: 11px; align-self: center; }
 nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #toolbar { flex: 1 1 0; min-width: 0; }
 /* A row of buttons in one rounded box; the picked one is lit. */
@@ -119,3 +120,74 @@ nav.pages { flex: none; gap: 2px; padding-right: 10px; margin-right: 2px; border
 .heat .bar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
 #by-year-title { margin-top: 24px; }
 #by-year { margin-bottom: 12px; }
+
+/* Compact page navigation and a separate, predictable control row. */
+header { gap: 0 8px; padding: 0 12px 6px; align-items: center; }
+.chart-page header { position: relative; }
+.chart-page header > .group { position: absolute; top: 5px; right: 12px; }
+.chart-page nav.pages { padding-right: 115px; box-sizing: border-box; }
+.chart-page #toolbar { flex-basis: 100%; }
+nav.pages { flex: 1 0 100%; height: 37px; gap: 16px; padding: 0; margin: 0 0 6px; border: 0; border-bottom: 1px solid var(--border); flex-wrap: nowrap; overflow-x: auto; }
+.pages::before { content: 'chartbook'; font-weight: 650; color: #e2e8f0; letter-spacing: -.3px; margin-right: 10px; }
+.pages a { flex-shrink: 0; padding: 9px 0 7px; font-size: 12px; border-radius: 0; border-bottom: 2px solid transparent; }
+.pages a.on { color: #a6baff; background: transparent; border-color: #7694ff; }
+.pages a[href]:hover { background: transparent; color: #fff; }
+#toolbar { gap: 6px; }
+.group { border-radius: 5px; padding: 1px; }
+.group button { padding: 3px 7px; font-size: 12px; border-radius: 3px; }
+.group button.on { background: #2e4070; color: #dce6ff; }
+nav select { border-radius: 5px; padding: 4px 6px; font-size: 12px; }
+.labelled { gap: 4px; }
+.control-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+.control-label[hidden] { display: none; }
+.toolbar-menu { position: relative; }
+.toolbar-menu summary { list-style: none; cursor: pointer; padding: 5px 9px; border: 1px solid var(--border); border-radius: 5px; color: var(--muted); font-size: 12px; }
+.toolbar-menu summary::after { content: '⌄'; margin-left: 7px; color: var(--faint); }
+.toolbar-menu[open] summary { background: var(--raised); color: var(--text); }
+.menu-content { position: absolute; z-index: 20; right: 0; top: 35px; padding: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 30px #0008; min-width: 150px; }
+.menu-content > .group { border: none; background: transparent; flex-direction: column; }
+.menu-content button { text-align: left; padding: 6px 10px; }
+#overlay-readout { position: absolute; top: 32px; left: 12px; z-index: 3; color: #fbbf24; pointer-events: none; font-size: 12px; }
+#fed-note { position: absolute; z-index: 5; bottom: 36px; left: 12px; max-width: min(460px, calc(100% - 110px)); background: #161a23ed; border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 11px; color: var(--muted); }
+#fed-note[hidden] { display: none; }
+#fed-note summary { cursor: pointer; }
+#fed-note a, .methodology a { color: #93b4ff; }
+.rates-page { padding: 22px 24px 12px; overflow: auto; display: flex; flex-direction: column; }
+.rates-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
+.eyebrow { color: #76839c; font-size: 10px; letter-spacing: 1.6px; }
+.rates-heading h1 { font-size: 23px; font-weight: 550; letter-spacing: -.5px; margin: 5px 0; }
+.rates-heading p { color: var(--muted); font-size: 12px; margin: 0; }
+.action-link { color: #9eb4fa; text-decoration: none; border: 1px solid #34415d; border-radius: 6px; padding: 8px 12px; white-space: nowrap; font-size: 12px; }
+.rates-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 260px; min-height: 410px; flex: 1; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.rate-plot { min-width: 0; position: relative; }
+#rate-chart { position: absolute; inset: 8px 0 29px; }
+.axis-caption { position: absolute; bottom: 8px; width: 100%; text-align: center; font-size: 11px; color: var(--faint); }
+.rate-sidebar { padding: 16px 14px; background: #131720; border-left: 1px solid var(--border); overflow-y: auto; }
+.legend-heading { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+.legend-heading button { background: none; border: 0; color: #96acdf; cursor: pointer; font-size: 11px; }
+.rate-sidebar > p { color: var(--faint); font-size: 11px; margin: 6px 0 16px; }
+.cycle-toggle { width: 100%; display: flex; align-items: center; gap: 9px; background: none; border: 0; border-radius: 5px; padding: 9px 4px; color: var(--text); cursor: pointer; text-align: left; }
+.cycle-toggle:hover { background: var(--raised); }
+.cycle-toggle[aria-pressed=false] { opacity: .35; }
+.cycle-toggle i { background: var(--cycle-color); width: 15px; height: 3px; flex-shrink: 0; }
+.cycle-toggle span { flex: 1; }
+.cycle-toggle small { display: block; color: var(--faint); font-size: 10px; margin-top: 3px; }
+.cycle-toggle b { font-size: 12px; font-weight: 500; color: var(--cycle-color); }
+#rate-hover { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; font-size: 11px; font-variant-numeric: tabular-nums; }
+#rate-hover div { margin-top: 8px; }
+.methodology { color: var(--muted); font-size: 12px; padding-top: 12px; }
+.methodology summary { cursor: pointer; }
+.methodology p { max-width: 1000px; line-height: 1.7; }
+@media (max-width: 900px) {
+  header { padding-inline: 8px; }
+  nav.pages { gap: 13px; }
+  .pages::before { display: none; }
+  .rates-page { padding: 16px 10px 10px; }
+  .rates-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .rates-workspace { display: flex; flex-direction: column; min-height: 650px; }
+  .rate-plot { min-height: 360px; flex: 1; }
+  .rate-sidebar { border-left: 0; border-top: 1px solid var(--border); overflow: visible; }
+  #rate-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+  .rates-heading h1 { font-size: 20px; }
+  .menu-content { position: fixed; right: 10px; top: 110px; }
+}

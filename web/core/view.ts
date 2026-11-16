@@ -21,7 +21,7 @@ export function chartView(main: ReturnType<typeof createMainChart>, onLoad: () =
     const key = `${t} ${i}`;
     if (!loaded.has(key)) {
       loaded.set(key, null);
-      fetchCandles(t, i).then((c) => (loaded.set(key, c), onLoad()));
+      fetchCandles(t, i).then((c) => (loaded.set(key, c), onLoad())).catch(() => loaded.delete(key));
     }
     return loaded.get(key) ?? undefined;
   };
@@ -30,11 +30,13 @@ export function chartView(main: ReturnType<typeof createMainChart>, onLoad: () =
 
   return {
     /** The bars on screen, for placing drawings made on any timeframe. */
-    setBars(candles: Candle[], t: Ticker, i: Interval) {
+    setBars(candles: Candle[], t: Ticker, i: Interval, daily?: Candle[]) {
       if (bars.length) loaded.set(`${ticker} ${interval}`, bars); // a fractal copied onto the next asset may need them
       bars = candles;
       ticker = t;
       interval = i;
+      loaded.set(`${t} ${i}`, candles);
+      if (daily) loaded.set(`${t} 1D`, daily);
     },
     /** What tools get; make a fresh one per frame, as size and scales change. */
     view: (): View => ({
@@ -46,7 +48,9 @@ export function chartView(main: ReturnType<typeof createMainChart>, onLoad: () =
       if (!times.length) return; // its candles are still downloading
       const at = times.map(main.toLogical);
       const [from, to] = [Math.min(...at), Math.max(...at)];
-      time.setVisibleLogicalRange({ from: from - (to - from) / 2, to: to + (to - from) / 10 });
+      const span = Math.max(20, to - from);
+      chart.priceScale('right').applyOptions({ autoScale: true });
+      time.setVisibleLogicalRange({ from: from - span / 2, to: Math.max(to, from + 1) + span / 10 });
     },
     /**
      * A click as time + price: the nearest bar (or future bar slot) in time and wherever the mouse is in price;

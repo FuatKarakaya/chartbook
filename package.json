@@ -11,7 +11,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "shot": "tsx scripts/screenshot.ts",
-    "backfill": "tsx server/backfill.ts"
+    "check-ui": "tsx scripts/check-ui.ts",
+    "check-rates": "tsx scripts/check-rates.ts",
+    "backfill": "tsx server/backfill.ts",
+    "silver-history": "tsx scripts/silver-history.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",

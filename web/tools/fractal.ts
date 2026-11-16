@@ -1,4 +1,5 @@
-import { biggestMove, type Fractal, project, stretch } from '../../shared/fractal.ts';
+import { biggestMove, type Fractal, stretch } from '../../shared/fractal.ts';
+import { fractalProjection } from '../core/fractal.ts';
 import { ASSET_NAMES, ASSETS, tickerName } from '../../shared/types.ts';
 import { button, ghostCandles, GRAB, label, type Px, type Tool, type View } from '../core/tool.ts';
 
@@ -6,15 +7,8 @@ import { button, ghostCandles, GRAB, label, type Px, type Tool, type View } from
  * The source candles on the chart's timeframe, or daily where that timeframe's history doesn't reach back
  * far enough (hourly S&P only covers 2 years). Empty while they download.
  */
-function source(f: Fractal, view: View) {
-  let all = view.candles(f.sourceAsset, view.interval);
-  if (all && (all[0]?.time ?? 0) > f.srcStart) all = view.candles(f.sourceAsset, '1D');
-  return all ? stretch(all, f.srcStart, f.srcEnd) : [];
-}
-
 function ghost(f: Fractal, view: View) {
-  const src = source(f, view);
-  return src.length ? project(f, src) : [];
+  return fractalProjection(f, view).copy;
 }
 
 /** Scales are kept to 2 decimals, so the label shows exactly what is stored, and above 0. */
@@ -43,7 +37,7 @@ export const fractal: Tool<Fractal> = {
     if (stretch(view.bars, Math.min(a.time, b.time), Math.max(a.time, b.time)).length < 2) return null;
     const last = view.bars[view.bars.length - 1];
     return {
-      sourceAsset: view.asset, srcStart: Math.min(a.time, b.time), srcEnd: Math.max(a.time, b.time),
+      sourceAsset: view.asset, sourceInterval: view.interval, srcStart: Math.min(a.time, b.time), srcEnd: Math.max(a.time, b.time),
       anchorTime: last.time, anchorPrice: last.close, timeScale: 1, moveScale: 1, flip: false,
       style: { color: '#ab47bc', opacity: 0.6 },
     };
@@ -51,9 +45,8 @@ export const fractal: Tool<Fractal> = {
   candles: ghost,
   // Anchor, time (at the copy's end, level with the anchor), move size (on the biggest move).
   handles(f, view) {
-    const src = source(f, view);
+    const { src, copy } = fractalProjection(f, view);
     if (!src.length) return [];
-    const copy = project(f, src);
     const big = copy[biggestMove(src)];
     return [
       { time: f.anchorTime, price: f.anchorPrice },
@@ -62,12 +55,16 @@ export const fractal: Tool<Fractal> = {
     ];
   },
   place(f, [anchor, end, size], moved, view) {
+    f.sourceInterval ??= view.interval;
     if (moved <= 0) return void Object.assign(f, { anchorTime: anchor.time, anchorPrice: anchor.price });
-    const src = source(f, view);
-    if (moved === 1) f.timeScale = round((end.time - f.anchorTime) / (src[src.length - 1].time - src[0].time));
+    const { src, span, logical } = fractalProjection(f, view);
+    if (src.length < 2) return;
+    if (moved === 1) f.timeScale = round((logical(end.time) - logical(f.anchorTime)) / span);
     else {
       // The power that puts the biggest move's close at the mouse; across the anchor from the original means flipped.
-      const k = Math.log(size.price / f.anchorPrice) / Math.log(src[biggestMove(src)].close / src[0].close);
+      const move = Math.log(src[biggestMove(src)].close / src[0].close);
+      if (!move || size.price <= 0 || f.anchorPrice <= 0) return;
+      const k = Math.log(size.price / f.anchorPrice) / move;
       f.moveScale = round(Math.abs(k));
       f.flip = k < 0;
     }
@@ -97,6 +94,7 @@ export const fractal: Tool<Fractal> = {
   },
   controls(f, edit, view) {
     const flip = button('Flip', () => {
+      f.sourceInterval ??= view.interval;
       f.flip = !f.flip;
       flip.classList.toggle('on', f.flip);
       edit.changed(true);
@@ -104,6 +102,7 @@ export const fractal: Tool<Fractal> = {
     flip.classList.toggle('on', f.flip);
     const color = Object.assign(document.createElement('input'), { type: 'color', value: f.style.color, title: 'Colour' });
     color.oninput = () => {
+      f.sourceInterval ??= view.interval;
       f.style.color = color.value;
       edit.changed(false);
     };
@@ -111,6 +110,7 @@ export const fractal: Tool<Fractal> = {
       type: 'range', min: '0.1', max: '1', step: '0.05', value: String(f.style.opacity), title: 'Opacity',
     });
     opacity.oninput = () => {
+      f.sourceInterval ??= view.interval;
       f.style.opacity = Number(opacity.value);
       edit.changed(false);
     };
@@ -118,7 +118,8 @@ export const fractal: Tool<Fractal> = {
     // A copy on another asset starts from that asset's last candle, like a new one.
     const copies = ASSETS.filter((a) => a !== view.asset).map((asset) =>
       button(ASSET_NAMES[asset], () => edit.copyTo(asset, (bars) => ({
-        ...structuredClone(f), anchorTime: bars[bars.length - 1].time, anchorPrice: bars[bars.length - 1].close,
+        ...structuredClone(f), sourceInterval: f.sourceInterval ?? view.interval,
+        anchorTime: bars[bars.length - 1].time, anchorPrice: bars[bars.length - 1].close,
       })), `Copy this fractal onto ${ASSET_NAMES[asset]}, starting at its last candle`));
     return [`Fractal of ${tickerName(f.sourceAsset)} ${date(f.srcStart)} to ${date(f.srcEnd)}`, flip, color, opacity, 'Copy to', ...copies];
   },

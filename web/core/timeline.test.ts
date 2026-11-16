@@ -34,6 +34,21 @@ describe('carryRange', () => {
   const daily = timeline(Array.from({ length: 700 }, (_, i) => i * DAY));
   const weekly = timeline(Array.from({ length: 100 }, (_, i) => i * WEEK));
 
+  it('recovers from future-only views, including a view starting exactly at the last candle', () => {
+    for (const from of [699, 700, 900]) {
+      const r = carryRange({ from, to: from + 100 }, daily, weekly, 20, 5000);
+      expect(Number.isFinite(r.from) && Number.isFinite(r.to)).toBe(true);
+      expect(r.from).toBeLessThan(weekly.last);
+      expect(r.to).toBeGreaterThan(weekly.last);
+      expect(r.to - r.from).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it('recovers at available data when hourly history starts after the visible dates', () => {
+    const recent = timeline([800, 801, 802].map(d => d * DAY));
+    expect(carryRange({ from: 10, to: 100 }, daily, recent, 20, 5000)).toEqual({ from: 0, to: 20 });
+  });
+
   it('keeps the view as it is on the same bars (a refresh)', () => {
     expect(carryRange({ from: 100, to: 300 }, daily, daily, 20, 5000)).toEqual({ from: 100, to: 300 });
   });
@@ -57,4 +72,12 @@ describe('carryRange', () => {
     expect(r.to - r.from).toBeCloseTo(100);
     expect((r.to - 699) / (r.to - r.from)).toBeCloseTo(10 / 99);
   });
+});
+
+it('has finite coordinate conversions for empty or single-bar data', () => {
+  for (const times of [[], [7 * DAY]]) {
+    const t = timeline(times);
+    expect(t.toLogical(t.toTime(2))).toBe(2);
+    expect(t.toLogical(t.toTime(-2))).toBe(-2);
+  }
 });

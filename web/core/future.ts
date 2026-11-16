@@ -1,4 +1,4 @@
-// Dates in the empty space right of the last bar, where fractals and pattern overlays project to: the chart itself
+// Dates in the empty space right of the last bar, where fractals project to: the chart itself
 // only labels times that have a bar. Drawn on the time axis in their own colour, with the date under the mouse there.
 import type { IChartApi, IPrimitivePaneView, ISeriesApi, ISeriesPrimitiveAxisView, SeriesType } from 'lightweight-charts';
 
